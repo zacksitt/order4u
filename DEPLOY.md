@@ -52,14 +52,27 @@ npm run db:seed             # optional demo users
 
 ## 2. Process manager (pm2)
 
+**Build in the app directory first** — `next start` fails without `.next/`:
+
+```bash
+cd /root/app/order4u   # your clone path
+npm run build          # must finish without errors
+ls .next/BUILD_ID      # should exist
+```
+
 ```bash
 npm install -g pm2
-pm2 start npm --name order4u -- start -- -H 127.0.0.1 -p 3000
+pm2 delete order4u 2>/dev/null || true
+pm2 start npm --name order4u --cwd /root/app/order4u -- start -- -H 127.0.0.1 -p 3000
 pm2 save
 pm2 startup
 ```
 
+Use **`--cwd`** so pm2 always runs from the repo (not a parent like `/root/app`).
+
 App must bind **127.0.0.1:3000** so only nginx is public.
+
+If logs show `production-start-no-build-id`, run `npm run build` again from the same path as `--cwd`.
 
 ## 3. nginx
 

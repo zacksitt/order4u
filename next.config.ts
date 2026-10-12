@@ -1,5 +1,10 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { withSerwist } from "@serwist/turbopack";
 import type { NextConfig } from "next";
+
+const appRoot = path.dirname(fileURLToPath(import.meta.url));
 
 /** Allow ngrok / tunnel host for HMR when testing Messenger webviews in dev (see APP_URL). */
 function allowedDevOriginsFromEnv(): string[] {
@@ -17,6 +22,8 @@ function allowedDevOriginsFromEnv(): string[] {
 }
 
 const nextConfig: NextConfig = {
+  /** App lives in a subfolder (e.g. /root/app/order4u); avoid tracing parent lockfiles. */
+  outputFileTracingRoot: appRoot,
   allowedDevOrigins: allowedDevOriginsFromEnv(),
   async rewrites() {
     return [{ source: "/sw.js", destination: "/serwist/sw.js" }];
