@@ -17,11 +17,13 @@ export async function GET(_request: Request, context: RouteContext) {
   const buffer = await renderToBuffer(<CargoInvoicePdfDocument {...data} />);
   const filename = `${data.orderCode.replace(/[^a-zA-Z0-9-]/g, "_")}-cargo-invoice.pdf`;
 
+  const encoded = encodeURIComponent(filename);
   return new Response(new Uint8Array(buffer), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="${filename}"; filename*=UTF-8''${encoded}`,
       "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

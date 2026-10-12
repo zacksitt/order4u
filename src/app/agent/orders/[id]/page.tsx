@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CopyLineButton } from "@/components/order4u/copy-line-button";
+import { PdfDownloadButton } from "@/components/order4u/pdf-download-button";
 import { AgentOrderInvoiceTab } from "@/components/order4u/agent-order-invoice-tab";
 import { OrderTimeline } from "@/components/order4u/order-timeline";
 import { PageHeader } from "@/components/order4u/page-header";
@@ -89,18 +90,18 @@ export default async function AgentOrderDetailPage({ params }: PageProps) {
                 </>
               )}
               {order.productInvoice && (
-                <Button asChild variant="outline" size="sm">
-                  <Link href={productInvoicePdfUrl(order.publicToken)} target="_blank" rel="noopener noreferrer">
-                    Download product invoice PDF
-                  </Link>
-                </Button>
+                <PdfDownloadButton
+                  href={productInvoicePdfUrl(order.publicToken)}
+                  fallbackFilename={`${order.code}-product-invoice.pdf`}
+                  label="Download product invoice PDF"
+                />
               )}
               {order.cargoInvoice && (
-                <Button asChild variant="outline" size="sm">
-                  <Link href={cargoInvoicePdfUrl(order.publicToken)} target="_blank" rel="noopener noreferrer">
-                    Download cargo invoice PDF
-                  </Link>
-                </Button>
+                <PdfDownloadButton
+                  href={cargoInvoicePdfUrl(order.publicToken)}
+                  fallbackFilename={`${order.code}-cargo-invoice.pdf`}
+                  label="Download cargo invoice PDF"
+                />
               )}
             </CardContent>
           </Card>

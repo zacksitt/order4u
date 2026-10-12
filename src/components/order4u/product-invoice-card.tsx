@@ -1,9 +1,6 @@
-import { Download } from "lucide-react";
-import Link from "next/link";
-
 import { InvoiceBlock } from "@/components/order4u/money-row";
 import { InvoiceLineItems } from "@/components/order4u/invoice-line-items";
-import { Button } from "@/components/ui/button";
+import { PdfDownloadButton } from "@/components/order4u/pdf-download-button";
 import type { InvoiceLineDisplay } from "@/lib/invoice-display";
 import { productInvoicePdfUrl } from "@/lib/invoice-display";
 import type { InvoiceSnapshot } from "@/lib/types";
@@ -47,12 +44,11 @@ export function ProductInvoiceCard({
       <InvoiceBlock title={title} snapshot={snapshot} />
 
       {canDownload && (
-        <Button asChild variant="outline" className="w-full sm:w-auto" size="sm">
-          <Link href={productInvoicePdfUrl(publicToken)} target="_blank" rel="noopener noreferrer">
-            <Download className="mr-2 h-4 w-4" />
-            Download product invoice PDF
-          </Link>
-        </Button>
+        <PdfDownloadButton
+          href={productInvoicePdfUrl(publicToken)}
+          fallbackFilename={`${orderCode ?? "order"}-product-invoice.pdf`}
+          label="Download product invoice PDF"
+        />
       )}
     </div>
   );
