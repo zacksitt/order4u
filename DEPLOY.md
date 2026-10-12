@@ -62,17 +62,29 @@ ls .next/BUILD_ID      # should exist
 
 ```bash
 npm install -g pm2
+chmod +x scripts/start-production.sh
 pm2 delete order4u 2>/dev/null || true
-pm2 start npm --name order4u --cwd /root/app/order4u -- start -- -H 127.0.0.1 -p 3000
+pm2 start deploy/pm2/ecosystem.config.cjs
 pm2 save
 pm2 startup
 ```
 
-Use **`--cwd`** so pm2 always runs from the repo (not a parent like `/root/app`).
+The ecosystem file resolves the repo path automatically (works even if the clone is not `/root/app/order4u`).
 
 App must bind **127.0.0.1:3000** so only nginx is public.
 
-If logs show `production-start-no-build-id`, run `npm run build` again from the same path as `--cwd`.
+### `production-start-no-build-id`
+
+Build **in the same folder as `package.json`**, then confirm:
+
+```bash
+cd /root/app/order4u
+npm run build
+test -f .next/BUILD_ID && echo "OK" || echo "BUILD FAILED — read npm output above"
+pm2 restart order4u
+```
+
+If `npm run build` fails (often **out of memory** on small VPS), add swap or build on your laptop and rsync `.next` (not ideal) or upgrade the droplet.
 
 ## 3. nginx
 
