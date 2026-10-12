@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  agent
+  cargo
+  admin
+}
+
+enum ItemStatus {
+  pending_purchase
+  purchased
+  seller_shipped
+  arrived_at_agent
+  cancelled
+}
+
+enum FulfillmentStatus {
+  collecting
+  ready_for_cargo
+  handed_to_cargo
+  cargo_received
+  cargo_checking
+  cargo_check_ok
+  cargo_check_exception
+  cargo_invoiced
+  in_transit
+  delivered
+}
+
+enum ProductPaymentStatus {
+  awaiting
+  paid
+}
+
+enum CargoPaymentStatus {
+  not_applicable
+  awaiting
+  paid
+}
+
+model Tenant {
+  id                       String   @id @default(uuid())
+  name                     String
+  slug                     String   @unique @default("demo-shop")
+  defaultAgentId           String?  @map("default_agent_id")
+  messengerPageId          String?  @unique @map("messenger_page_id")
+  publicOrderFormEnabled   Boolean  @default(true) @map("public_order_form_enabled")
+  defaultThbMmkRate        Decimal  @default(92) @map("default_thb_mmk_rate") @db.Decimal(12, 4)
+  defaultServiceFeePercent Decimal  @default(7) @map("default_service_fee_percent") @db.Decimal(5, 2)
+  paymentInstructions    String?  @map("payment_instructions")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  defaultAgent User? @relation("TenantDefaultAgent", fields: [defaultAgentId], references: [id])
+  memberships TenantMembership[]
+  customers   Customer[]
+  orders      Order[]
+  catalogItems CatalogItem[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  displayName  String   @map("display_name")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  memberships          TenantMembership[]
+  ordersAsAgent        Order[] @relation("OrderAgent")
+  ordersAsCargo        Order[] @relation("OrderCargoAssignee")
+  ordersHandedToCargo  Order[] @relation("OrderHandedBy")
+  defaultAgentForTenants Tenant[] @relation("TenantDefaultAgent")
+
+  @@map("users")
+}
+
+model TenantMembership {
+  tenantId String         @map("tenant_id")
+  userId   String         @map("user_id")
+  role     MembershipRole
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, userId, role])
+  @@map("tenant_memberships")
+}
+
+model Customer {
+  id                  String  @id @default(uuid())
+  tenantId            String  @map("tenant_id")
+  phone               String
+  name                String
+  portalAccessToken   String? @unique @map("portal_access_token")
+  messengerPsid       String? @map("messenger_psid")
+  messengerDisplayName String? @map("messenger_display_name")
+  trustedBuyBeforePay Boolean @default(false) @map("trusted_buy_before_pay")
+  notes               String?
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@unique([tenantId, messengerPsid])
+  @@map("customers")
+}
+
+model CatalogItem {
+  id          String   @id @default(uuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  sourceUrl   String   @map("source_url")
+  price       Decimal  @db.Decimal(12, 2)
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@map("items")
+}
+
+model Order {
+  id                    String               @id @default(uuid())
+  tenantId              String               @map("tenant_id")
+  assignedAgentId       String               @map("assigned_agent_id")
+  assignedCargoUserId   String?              @map("assigned_cargo_user_id")
+  handedToCargoByUserId String?              @map("handed_to_cargo_by_user_id")
+  customerId            String               @map("customer_id")
+  code                  String
+  publicAccessToken     String               @unique @map("public_access_token")
+  fulfillmentStatus     FulfillmentStatus    @default(collecting) @map("fulfillment_status")
+  productPaymentStatus  ProductPaymentStatus @default(awaiting) @map("product_payment_status")
+  cargoPaymentStatus    CargoPaymentStatus   @default(not_applicable) @map("cargo_payment_status")
+  productPaidAt         DateTime?            @map("product_paid_at")
+  cargoPaidAt           DateTime?            @map("cargo_paid_at")
+  trustedEarlyBuy       Boolean              @default(false) @map("trusted_early_buy")
+  handedToCargoAt       DateTime?            @map("handed_to_cargo_at")
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
+
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedAgent    User            @relation("OrderAgent", fields: [assignedAgentId], references: [id])
+  assignedCargoUser User?          @relation("OrderCargoAssignee", fields: [assignedCargoUserId], references: [id])
+  handedToCargoBy  User?           @relation("OrderHandedBy", fields: [handedToCargoByUserId], references: [id])
+  customer         Customer        @relation(fields: [customerId], references: [id])
+  items            OrderItem[]
+  productInvoice   ProductInvoice?
+  cargoInvoice     CargoInvoice?
+
+  @@unique([tenantId, code])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String     @id @default(uuid())
+  orderId        String     @map("order_id")
+  catalogItemId  String?    @map("catalog_item_id")
+  sortOrder      Int        @default(0) @map("sort_order")
+  title          String
+  sourceUrl      String     @map("source_url")
+  qty            Int
+  price          Decimal    @db.Decimal(12, 2)
+  actualPrice    Decimal?   @map("actual_price") @db.Decimal(12, 2)
+  status         ItemStatus @default(pending_purchase)
+  cargoCheckOk   Boolean?   @map("cargo_check_ok")
+  cargoCheckNote String?    @map("cargo_check_note")
+
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  catalogItem CatalogItem? @relation(fields: [catalogItemId], references: [id])
+
+  @@map("order_items")
+}
+
+model ProductInvoice {
+  id                String   @id @default(uuid())
+  orderId           String   @unique @map("order_id")
+  issuedAt          DateTime @default(now()) @map("issued_at")
+  thbSubtotal       Decimal  @map("thb_subtotal") @db.Decimal(12, 2)
+  thbShipping       Decimal  @map("thb_shipping") @db.Decimal(12, 2)
+  serviceFeePercent Decimal  @map("service_fee_percent") @db.Decimal(5, 2)
+  serviceFeeThb     Decimal  @map("service_fee_thb") @db.Decimal(12, 2)
+  mmkServiceFee     Int      @map("mmk_service_fee")
+  rateThbMmk        Decimal  @map("rate_thb_mmk") @db.Decimal(12, 4)
+  mmkTotalDue       Int      @map("mmk_total_due")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("product_invoices")
+}
+
+model CargoInvoice {
+  id                String   @id @default(uuid())
+  orderId           String   @unique @map("order_id")
+  issuedAt          DateTime @default(now()) @map("issued_at")
+  chargeableWeightKg Decimal @map("chargeable_weight_kg") @db.Decimal(8, 2)
+  mmkTotalDue       Int      @map("mmk_total_due")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("cargo_invoices")
+}

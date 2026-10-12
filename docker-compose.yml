@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: order4u
+      POSTGRES_PASSWORD: order4u
+      POSTGRES_DB: order4u
+    volumes:
+      - order4u_pg:/var/lib/postgresql/data
+
+volumes:
+  order4u_pg:
