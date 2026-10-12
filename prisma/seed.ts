@@ -13,23 +13,7 @@ const CARGO2_ID = "user_cargo_2";
 async function main() {
   const passwordHash = hashSync(DEMO_PASSWORD, 10);
 
-  await prisma.tenant.upsert({
-    where: { id: TENANT_ID },
-    update: {
-      slug: "demo-shop",
-      defaultAgentId: AGENT_ID,
-    },
-    create: {
-      id: TENANT_ID,
-      name: "Demo Shop",
-      slug: "demo-shop",
-      defaultAgentId: AGENT_ID,
-      defaultThbMmkRate: 92,
-      defaultServiceFeePercent: 7,
-      paymentInstructions: "KBZ Pay / Wave — send screenshot in chat after transfer.",
-    },
-  });
-
+  // Agent must exist before tenant.defaultAgentId (FK tenants_default_agent_id_fkey).
   const agent = await prisma.user.upsert({
     where: { email: "agent@demo.shop" },
     update: {},
@@ -38,6 +22,23 @@ async function main() {
       email: "agent@demo.shop",
       passwordHash,
       displayName: "Demo Agent",
+    },
+  });
+
+  await prisma.tenant.upsert({
+    where: { id: TENANT_ID },
+    update: {
+      slug: "demo-shop",
+      defaultAgentId: agent.id,
+    },
+    create: {
+      id: TENANT_ID,
+      name: "Demo Shop",
+      slug: "demo-shop",
+      defaultAgentId: agent.id,
+      defaultThbMmkRate: 92,
+      defaultServiceFeePercent: 7,
+      paymentInstructions: "KBZ Pay / Wave — send screenshot in chat after transfer.",
     },
   });
 

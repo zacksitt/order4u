@@ -10,6 +10,10 @@ Buying Agent + Cargo platform (Thailand → Myanmar).
 - Next.js App Router, Server Actions, Prisma + PostgreSQL, Auth.js
 - React 19, TypeScript, Tailwind CSS v4
 
+## Deploy (VPS + nginx)
+
+See **[DEPLOY.md](./DEPLOY.md)** and **`deploy/nginx/order4u.conf.example`**.
+
 ## Run locally
 
 See **[DEVELOPMENT.md](./DEVELOPMENT.md)** — Postgres and `AUTH_SECRET` are required.
