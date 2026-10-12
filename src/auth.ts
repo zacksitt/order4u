@@ -1,7 +1,7 @@
 import type { MembershipRole } from "@prisma/client";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
+import { compareSync } from "bcryptjs";
 import { z } from "zod";
 
 import { prisma } from "@/server/db";
@@ -12,8 +12,9 @@ const credentialsSchema = z.object({
 });
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: process.env.AUTH_SECRET,
   trustHost: true,
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   pages: { signIn: "/login" },
   providers: [
     Credentials({
@@ -30,7 +31,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           where: { email: email.toLowerCase() },
         });
         if (!user?.isActive) return null;
-        if (!compare(password, user.passwordHash)) return null;
+        if (!compareSync(password, user.passwordHash)) return null;
 
         const membership = await prisma.tenantMembership.findFirst({
           where: { userId: user.id, role: { in: ["agent", "cargo"] } },

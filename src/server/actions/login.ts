@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { signIn } from "@/auth";
 import { prisma } from "@/server/db";
-import { compare } from "bcryptjs";
+import { compareSync } from "bcryptjs";
 
 export type LoginResult = { ok: false; error: string };
 
@@ -15,7 +15,7 @@ export async function loginWithCredentials(
 ): Promise<LoginResult | void> {
   const normalized = email.trim().toLowerCase();
   const user = await prisma.user.findUnique({ where: { email: normalized } });
-  if (!user?.isActive || !compare(password, user.passwordHash)) {
+  if (!user?.isActive || !compareSync(password, user.passwordHash)) {
     return { ok: false, error: "Invalid email or password." };
   }
 

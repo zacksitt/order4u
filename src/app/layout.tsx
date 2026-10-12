@@ -18,12 +18,24 @@ const geistMono = Geist_Mono({
 
 const APP_NAME = "Order4U Staff";
 
+function siteOrigin(): URL | undefined {
+  const raw = process.env.APP_URL ?? process.env.AUTH_URL;
+  if (!raw) return undefined;
+  try {
+    return new URL(raw);
+  } catch {
+    return undefined;
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const h = await headers();
   const hostname = requestHostname(h.get("x-forwarded-host"), h.get("host"));
   const exposePwa = shouldExposeStaffPwaMetadata(hostname);
+  const metadataBase = siteOrigin();
 
   return {
+    metadataBase,
     applicationName: exposePwa ? APP_NAME : undefined,
     title: {
       default: "Order4U — Buying agent & cargo",
