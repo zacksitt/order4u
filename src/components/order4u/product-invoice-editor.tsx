@@ -15,6 +15,8 @@ type ProductInvoiceEditorProps = {
   /** Controlled TH shipping (use with onThbShippingChange). */
   thbShipping?: number;
   onThbShippingChange?: (value: number) => void;
+  /** When set, shipping is the sum of line fees and cannot be edited here. */
+  shippingReadOnly?: boolean;
   rate?: number;
   /** Default / display hint when fee is uncontrolled. */
   initialFeePercent?: number;
@@ -29,6 +31,7 @@ export function ProductInvoiceEditor({
   thbSubtotal,
   thbShipping: thbShippingProp = 0,
   onThbShippingChange,
+  shippingReadOnly = false,
   rate = DEFAULT_TENANT_SETTINGS.thbMmkRate,
   initialFeePercent = DEFAULT_TENANT_SETTINGS.defaultServiceFeePercent,
   feePercent: feePercentProp,
@@ -43,7 +46,7 @@ export function ProductInvoiceEditor({
   const shippingControlled = onThbShippingChange !== undefined;
 
   const feePercent = feeControlled ? feePercentProp : internalFee;
-  const shipping = shippingControlled ? thbShippingProp : internalShipping;
+  const shipping = shippingReadOnly || shippingControlled ? thbShippingProp : internalShipping;
 
   const setFeePercent = (value: number) => {
     if (feeControlled) onFeePercentChange!(value);
@@ -90,8 +93,12 @@ export function ProductInvoiceEditor({
             min={0}
             step="1"
             value={shipping}
+            readOnly={shippingReadOnly}
             onChange={(e) => setShipping(Number(e.target.value) || 0)}
           />
+          {shippingReadOnly ? (
+            <p className="text-xs text-muted-foreground">Sum of each item’s shipping fee.</p>
+          ) : null}
         </div>
       </div>
 

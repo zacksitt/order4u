@@ -6,9 +6,11 @@ type InvoiceLineItemsProps = {
   lines: InvoiceLineDisplay[];
   className?: string;
   compact?: boolean;
+  /** Cargo invoice lists the item and quantity only. */
+  qtyOnly?: boolean;
 };
 
-export function InvoiceLineItems({ lines, className, compact }: InvoiceLineItemsProps) {
+export function InvoiceLineItems({ lines, className, compact, qtyOnly }: InvoiceLineItemsProps) {
   if (lines.length === 0) return null;
 
   return (
@@ -18,7 +20,7 @@ export function InvoiceLineItems({ lines, className, compact }: InvoiceLineItems
           <tr className="border-b border-border bg-muted/50 text-left text-xs text-muted-foreground">
             <th className="px-3 py-2 font-medium">Item</th>
             <th className="px-3 py-2 font-medium text-right w-24">Qty</th>
-            <th className="px-3 py-2 font-medium text-right w-32">Line (THB)</th>
+            {qtyOnly ? null : <th className="px-3 py-2 font-medium text-right w-32">Line (THB)</th>}
           </tr>
         </thead>
         <tbody>
@@ -26,9 +28,11 @@ export function InvoiceLineItems({ lines, className, compact }: InvoiceLineItems
             <tr key={`${line.title}-${i}`} className="border-b border-border last:border-0">
               <td className={cn("px-3 py-2.5 font-medium break-words", compact && "text-xs")}>{line.title}</td>
               <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{line.qty}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums">
-                {compact ? fmtThb(line.price * line.qty) : fmtThbLine(line.price, line.qty)}
-              </td>
+              {qtyOnly ? null : (
+                <td className="px-3 py-2.5 text-right tabular-nums">
+                  {compact ? fmtThb(line.price * line.qty) : fmtThbLine(line.price, line.qty)}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

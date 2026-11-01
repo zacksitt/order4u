@@ -65,6 +65,8 @@ export type OrderItem = {
   status: ItemStatus;
   /** Quoted THB per unit — shown to customer on invoice/track. */
   price: number;
+  /** Thailand shipping for this line, in THB. Summed into the product invoice. */
+  shippingFeeThb?: number;
   /** Actual THB agent paid per unit — agent only; set after marketplace purchase. */
   actualPrice?: number;
   /** Optional link to catalog row used when line was added. */
@@ -82,7 +84,12 @@ export type Order = {
   fulfillment: FulfillmentStatus;
   items: OrderItem[];
   productInvoice?: InvoiceSnapshot;
-  cargoInvoice?: InvoiceSnapshot & { weightKg: number };
+  cargoInvoice?: {
+    weightKg: number;
+    mmkTotal: number;
+    /** Present when the warehouse entered the fee in THB. */
+    thbTotal?: number;
+  };
   publicToken: string;
   /** Set when agent hands order to cargo — cargo queue filters on this user. */
   assignedCargoUserId?: string;

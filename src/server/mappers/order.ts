@@ -40,16 +40,11 @@ function mapProductInvoice(inv: ProductInvoice): InvoiceSnapshot {
   };
 }
 
-function mapCargoInvoice(inv: CargoInvoice): InvoiceSnapshot & { weightKg: number } {
+function mapCargoInvoice(inv: CargoInvoice): NonNullable<Order["cargoInvoice"]> {
   return {
-    thbSubtotal: 0,
-    thbShipping: 0,
-    rate: 0,
-    serviceFeePercent: 0,
-    serviceFeeThb: 0,
-    serviceFeeMmk: 0,
-    mmkTotal: inv.mmkTotalDue,
     weightKg: num(inv.chargeableWeightKg),
+    mmkTotal: inv.mmkTotalDue,
+    thbTotal: inv.thbTotalDue != null ? num(inv.thbTotalDue) : undefined,
   };
 }
 
@@ -61,6 +56,7 @@ function mapItem(row: DbOrderItem): OrderItem {
     qty: row.qty,
     status: row.status as ItemStatus,
     price: num(row.price),
+    shippingFeeThb: num(row.shippingFeeThb),
     actualPrice: row.actualPrice != null ? num(row.actualPrice) : undefined,
     catalogItemId: row.catalogItemId ?? undefined,
     checkOk: row.cargoCheckOk ?? undefined,

@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, Share2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,9 @@ async function fetchInvoiceFile(href: string, fallbackFilename: string): Promise
   const res = await fetch(href, { credentials: "same-origin" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const blob = await res.blob();
+  const header = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
+  const magic = String.fromCharCode(...header);
+  if (magic !== "%PDF-") throw new Error("not-pdf");
   const filename = filenameFromDisposition(res.headers.get("Content-Disposition"), fallbackFilename);
   return new File([blob], filename, { type: "application/pdf" });
 }
@@ -102,19 +105,35 @@ export function PdfShareButton({
 }: PdfActionButtonProps) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const prefetched = useRef<Promise<File> | null>(null);
+
+  function prefetch() {
+    if (prefetched.current) return;
+    const request = fetchInvoiceFile(href, fallbackFilename);
+    prefetched.current = request;
+    request.catch(() => {
+      if (prefetched.current === request) prefetched.current = null;
+    });
+  }
 
   async function share() {
     setError(null);
     setPending(true);
     try {
-      const file = await fetchInvoiceFile(href, fallbackFilename);
+      const file = await (prefetched.current ?? fetchInvoiceFile(href, fallbackFilename));
+      prefetched.current = null;
       if (!navigator.share || !navigator.canShare?.({ files: [file] })) {
         setError("Sharing isn’t available in this browser.");
         return;
       }
-      await navigator.share({ files: [file], title: file.name });
+      await navigator.share({ files: [file] });
     } catch (err) {
+      prefetched.current = null;
       if (err instanceof DOMException && err.name === "AbortError") return;
+      if (err instanceof Error && err.message === "not-pdf") {
+        setError("The invoice file isn’t a PDF.");
+        return;
+      }
       setError("Couldn’t share the invoice.");
     } finally {
       setPending(false);
@@ -129,6 +148,7 @@ export function PdfShareButton({
         size={size}
         className={cn("w-full sm:w-auto", className)}
         disabled={pending}
+        onPointerDown={prefetch}
         onClick={() => void share()}
       >
         {showIcon && <Share2 className="mr-2 h-4 w-4" />}

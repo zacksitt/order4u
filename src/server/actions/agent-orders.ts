@@ -133,6 +133,44 @@ export async function updateOrderItemStatus(input: {
   return { ok: true };
 }
 
+export async function updateOrderItemActualPrice(input: {
+  orderId: string;
+  itemId: string;
+  actualPrice: number;
+}): Promise<ActionResult> {
+  const session = await requireAgent();
+  if (!Number.isFinite(input.actualPrice) || input.actualPrice < 0) {
+    return { ok: false, error: "Enter a THB amount." };
+  }
+
+  const order = await prisma.order.findFirst({
+    where: { id: input.orderId, tenantId: session.tenantId, assignedAgentId: session.userId },
+    include: { items: true },
+  });
+  if (!order) return { ok: false, error: "Order not found." };
+  const item = order.items.find((i) => i.id === input.itemId);
+  if (!item) return { ok: false, error: "Item not found." };
+  if (item.status === "cancelled") return { ok: false, error: "Cancelled items have no purchase price." };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.orderItem.update({
+      where: { id: input.itemId },
+      data: { actualPrice: input.actualPrice },
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: input.orderId,
+      userId: session.userId,
+      action: "actual_price_updated",
+      detail: `${input.itemId} ${input.actualPrice}`,
+    });
+  });
+
+  revalidatePath(`/agent/orders/${input.orderId}`);
+  return { ok: true };
+}
+
 export async function handOrderToCargo(input: {
   orderId: string;
   cargoUserId: string;

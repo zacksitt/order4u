@@ -10,13 +10,18 @@ import { OrderProgress } from "@/components/order4u/order-progress";
 import { PdfDownloadButton, PdfShareButton } from "@/components/order4u/pdf-download-button";
 import { StatusPill } from "@/components/order4u/status-pill";
 import { Button } from "@/components/ui/button";
-import { fmtThb } from "@/lib/format-money";
+import { fmtCargoFee, fmtThb } from "@/lib/format-money";
 import { productInvoicePdfUrl } from "@/lib/invoice-display";
 import { allItemsArrived, canHandOrderToCargo, isHandedToCargo } from "@/lib/order-rules";
 import { isProductPaid } from "@/lib/payment-status";
 import type { CargoStaffUser, ItemStatus, Order } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { handOrderToCargo, markProductPaid, updateOrderItemStatus } from "@/server/actions/agent-orders";
+import {
+  handOrderToCargo,
+  markProductPaid,
+  updateOrderItemActualPrice,
+  updateOrderItemStatus,
+} from "@/server/actions/agent-orders";
 
 const NEXT_STATUS: Partial<Record<ItemStatus, { status: ItemStatus; label: string }>> = {
   pending_purchase: { status: "purchased", label: "Mark bought" },
@@ -352,6 +357,24 @@ function ItemRow({
   const pill = ITEM_PILL[item.status];
   const arrived = item.status === "arrived_at_agent";
 
+  function savePrice() {
+    setError(null);
+    const price = Number(actualPrice);
+    if (actualPrice.trim() === "" || !Number.isFinite(price) || price < 0) {
+      setError("Enter a THB amount.");
+      return;
+    }
+    startTransition(async () => {
+      const result = await updateOrderItemActualPrice({
+        orderId,
+        itemId: item.id,
+        actualPrice: price,
+      });
+      if (!result.ok) setError(result.error);
+      else router.refresh();
+    });
+  }
+
   function markNext() {
     if (!advance) return;
     setError(null);
@@ -386,13 +409,14 @@ function ItemRow({
         <p className="text-sm font-semibold">{item.title}</p>
         <p className="mt-0.5 text-[13px] text-muted-foreground">
           {item.qty} × {fmtThb(item.price)}
+          {item.shippingFeeThb ? ` · shipping ${fmtThb(item.shippingFeeThb)}` : ""}
           {item.actualPrice !== undefined ? ` · you paid ${fmtThb(item.actualPrice)}` : ""}
         </p>
       </div>
       <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap", pill.className)}>
         {pill.label}
       </span>
-      {advance && (
+      {item.status !== "cancelled" && (
         <>
           <input
             aria-label={`Amount paid for ${item.title}`}
@@ -405,18 +429,28 @@ function ItemRow({
           />
           <button
             type="button"
-            onClick={markNext}
+            onClick={savePrice}
             disabled={locked || pending}
-            className={cn(
-              "min-h-10 rounded-[10px] px-3.5 text-[13px] font-semibold whitespace-nowrap",
-              locked
-                ? "border-0 bg-slate-100 text-slate-500"
-                : "border border-teal-700 bg-white text-teal-800",
-            )}
+            className="min-h-10 rounded-[10px] border border-slate-300 bg-white px-3 text-[13px] font-semibold whitespace-nowrap disabled:bg-slate-100 disabled:text-slate-500"
           >
-            {advance.label}
+            Save
           </button>
         </>
+      )}
+      {advance && (
+        <button
+          type="button"
+          onClick={markNext}
+          disabled={locked || pending}
+          className={cn(
+            "min-h-10 rounded-[10px] px-3.5 text-[13px] font-semibold whitespace-nowrap",
+            locked
+              ? "border-0 bg-slate-100 text-slate-500"
+              : "border border-teal-700 bg-white text-teal-800",
+          )}
+        >
+          {advance.label}
+        </button>
       )}
       {error && <p className="w-full text-xs text-destructive">{error}</p>}
     </li>
@@ -484,7 +518,7 @@ function InvoicePanels({ order }: { order: Order }) {
             {cargo ? `${cargo.weightKg} kg · ${cargoPay}` : "Appears after the warehouse check."}
           </p>
         </div>
-        {cargo && <p className="text-xl font-bold tabular-nums">{fmtMmk(cargo.mmkTotal)}</p>}
+        {cargo && <p className="text-xl font-bold tabular-nums">{fmtCargoFee(cargo)}</p>}
       </section>
     </div>
   );

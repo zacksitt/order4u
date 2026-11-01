@@ -10,6 +10,7 @@ export const orderLineSchema = z.object({
   url: z.string().min(8),
   qty: z.number().int().min(1),
   price: z.number().min(0),
+  shippingFeeThb: z.number().min(0).optional(),
   catalogItemId: z.string().optional(),
   shopeeShopId: z.string().min(1).optional(),
   shopeeItemId: z.string().min(1).optional(),
@@ -43,9 +44,13 @@ export async function createOrderForTenant(input: {
   const rate = Number(tenant.defaultThbMmkRate);
 
   const thbSubtotal = input.lines.reduce((s, l) => s + l.price * l.qty, 0);
+  const lineShipping = input.lines.reduce((s, l) => s + (l.shippingFeeThb ?? 0), 0);
+  const thbShipping = input.lines.some((l) => l.shippingFeeThb !== undefined)
+    ? lineShipping
+    : input.thbShipping;
   const snapshot = buildProductInvoiceSnapshot({
     thbSubtotal,
-    thbShipping: input.thbShipping,
+    thbShipping,
     rate,
     serviceFeePercent: input.serviceFeePercent,
   });
@@ -81,6 +86,7 @@ export async function createOrderForTenant(input: {
           sourceUrl: line.url,
           qty: line.qty,
           price: line.price,
+          shippingFeeThb: line.shippingFeeThb ?? 0,
           catalogItemId: lineCatalogIds[i] ?? null,
           ...marketplaceFromLine(line),
         })),

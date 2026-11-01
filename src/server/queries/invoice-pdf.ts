@@ -48,6 +48,7 @@ export async function getCargoInvoicePdfDataByToken(
     orderCode: order.code,
     lines: orderItemsToInvoiceLines(order.items),
     weightKg: order.cargoInvoice.weightKg,
+    thbTotalDue: order.cargoInvoice.thbTotal ?? null,
     mmkTotalDue: order.cargoInvoice.mmkTotal,
   };
 }

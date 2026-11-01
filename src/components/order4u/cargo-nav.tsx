@@ -4,10 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { NotificationBell } from "@/components/order4u/notification-bell";
+import { ShareAppButton } from "@/components/order4u/share-app-button";
 import { logout } from "@/server/actions/auth";
 import type { NotificationFeed } from "@/server/queries/notifications";
 
-export function CargoNav({ notifications }: { notifications: NotificationFeed }) {
+export function CargoNav({
+  notifications,
+  appUrl,
+}: {
+  notifications: NotificationFeed;
+  appUrl: string;
+}) {
   const pathname = usePathname();
   const onQueue = pathname.startsWith("/cargo/queue");
 
@@ -18,6 +25,7 @@ export function CargoNav({ notifications }: { notifications: NotificationFeed })
           Order4U Cargo
         </Link>
         <div className="flex items-center gap-3">
+          <ShareAppButton url={appUrl} className="px-2 py-1 text-xs" />
           <NotificationBell items={notifications.items} unreadCount={notifications.unreadCount} />
           <Link
             href="/cargo/queue"

@@ -8,7 +8,7 @@ import { useState, useTransition } from "react";
 import { OrderProgress } from "@/components/order4u/order-progress";
 import { StatusPill } from "@/components/order4u/status-pill";
 import { Button } from "@/components/ui/button";
-import { fmtThb } from "@/lib/format-money";
+import { fmtCargoFee } from "@/lib/format-money";
 import { isProductPaid } from "@/lib/payment-status";
 import type { ItemStatus, Order } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -107,7 +107,9 @@ export function CargoOrderDetail({ order }: { order: Order }) {
     order.items.map((item) => ({ itemId: item.id, checkOk: item.checkOk ?? true })),
   );
   const [weightKg, setWeightKg] = useState(order.cargoInvoice ? String(order.cargoInvoice.weightKg) : "");
-  const [mmkDue, setMmkDue] = useState(order.cargoInvoice ? String(order.cargoInvoice.mmkTotal) : "");
+  const [thbDue, setThbDue] = useState(
+    order.cargoInvoice?.thbTotal != null ? String(order.cargoInvoice.thbTotal) : "",
+  );
 
   const paid = isProductPaid(order.productPaymentStatus);
   const next = cargoNext(order);
@@ -124,12 +126,12 @@ export function CargoOrderDetail({ order }: { order: Order }) {
 
   function issueInvoice() {
     const weight = Number(weightKg);
-    const mmk = Math.round(Number(mmkDue));
-    if (!Number.isFinite(weight) || weight <= 0 || !Number.isFinite(mmk) || mmk <= 0) {
-      setError("Enter a weight and an MMK amount.");
+    const thb = Number(thbDue);
+    if (!Number.isFinite(weight) || weight <= 0 || !Number.isFinite(thb) || thb <= 0) {
+      setError("Enter a weight and a THB amount.");
       return;
     }
-    run(() => issueCargoInvoice({ orderId: order.id, chargeableWeightKg: weight, mmkTotalDue: mmk }));
+    run(() => issueCargoInvoice({ orderId: order.id, chargeableWeightKg: weight, thbTotalDue: thb }));
   }
 
   const cargoLabel =
@@ -225,15 +227,15 @@ export function CargoOrderDetail({ order }: { order: Order }) {
                 onChange={(event) => setWeightKg(event.target.value)}
                 className="h-12 w-28 rounded-xl border border-input bg-white px-3 text-sm"
               />
-              <label className="sr-only" htmlFor="cargo-mmk">
-                MMK due
+              <label className="sr-only" htmlFor="cargo-thb">
+                THB due
               </label>
               <input
-                id="cargo-mmk"
-                inputMode="numeric"
-                placeholder="MMK due"
-                value={mmkDue}
-                onChange={(event) => setMmkDue(event.target.value)}
+                id="cargo-thb"
+                inputMode="decimal"
+                placeholder="THB due"
+                value={thbDue}
+                onChange={(event) => setThbDue(event.target.value)}
                 className="h-12 w-32 rounded-xl border border-input bg-white px-3 text-sm"
               />
               <Button
@@ -331,7 +333,7 @@ export function CargoOrderDetail({ order }: { order: Order }) {
                     <div className="min-w-0 flex-1 basis-60">
                       <p className="text-sm font-semibold">{item.title}</p>
                       <p className="mt-0.5 text-[13px] text-muted-foreground">
-                        {item.qty} × {fmtThb(item.price)}
+                        Qty {item.qty}
                         {item.checkOk === false ? " · exception" : item.checkOk ? " · check ok" : ""}
                       </p>
                     </div>
@@ -382,37 +384,19 @@ export function CargoOrderDetail({ order }: { order: Order }) {
 }
 
 function CargoInvoicePanels({ order }: { order: Order }) {
-  const invoice = order.productInvoice;
   const cargo = order.cargoInvoice;
   const cargoPay = order.cargoPaymentStatus === "paid" ? "Paid" : "Awaiting payment";
 
   return (
     <div className="flex flex-col gap-4">
       <section className="flex flex-col gap-3 rounded-[14px] border border-border bg-card p-5">
-        <h2 className="text-base font-semibold">Product invoice</h2>
-        {invoice ? (
-          <>
-            {order.items.map((item) => (
-              <div key={item.id} className="flex justify-between gap-3 text-sm">
-                <span>
-                  {item.qty}× {item.title}
-                </span>
-                <span className="tabular-nums whitespace-nowrap">{fmtThb(item.price * item.qty)}</span>
-              </div>
-            ))}
-            <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-2.5 text-[13px] text-slate-600">
-              <MoneyRow label="Subtotal + Thai shipping" value={fmtThb(invoice.thbSubtotal + invoice.thbShipping)} />
-              <MoneyRow label={`Service fee (${invoice.serviceFeePercent}%)`} value={fmtThb(invoice.serviceFeeThb)} />
-              <MoneyRow label="Rate (locked)" value={`1 THB = ${invoice.rate} MMK`} />
-            </div>
-            <div className="flex items-baseline justify-between border-t border-dashed border-slate-300 pt-2.5">
-              <span className="text-[15px] font-semibold">Total due</span>
-              <span className="text-xl font-bold tabular-nums">{fmtMmk(invoice.mmkTotal)}</span>
-            </div>
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">No product invoice yet.</p>
-        )}
+        <h2 className="text-base font-semibold">Items</h2>
+        {order.items.map((item) => (
+          <div key={item.id} className="flex justify-between gap-3 text-sm">
+            <span className="min-w-0 break-words">{item.title}</span>
+            <span className="tabular-nums whitespace-nowrap">Qty {item.qty}</span>
+          </div>
+        ))}
       </section>
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-border bg-card p-5">
         <div>
@@ -421,17 +405,8 @@ function CargoInvoicePanels({ order }: { order: Order }) {
             {cargo ? `${cargo.weightKg} kg · ${cargoPay}` : "Appears after the warehouse check."}
           </p>
         </div>
-        {cargo && <p className="text-xl font-bold tabular-nums">{fmtMmk(cargo.mmkTotal)}</p>}
+        {cargo && <p className="text-xl font-bold tabular-nums">{fmtCargoFee(cargo)}</p>}
       </section>
-    </div>
-  );
-}
-
-function MoneyRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-3">
-      <span>{label}</span>
-      <span className="tabular-nums">{value}</span>
     </div>
   );
 }

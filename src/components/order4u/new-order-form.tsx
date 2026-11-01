@@ -24,12 +24,13 @@ type DraftLine = {
   url: string;
   qty: number;
   price: number;
+  shippingFee: number;
   catalogItemId?: string;
   shopeeShopId?: string;
   shopeeItemId?: string;
 };
 
-const DEFAULT_LINE: DraftLine = { title: "", url: "", qty: 1, price: 0 };
+const DEFAULT_LINE: DraftLine = { title: "", url: "", qty: 1, price: 0, shippingFee: 0 };
 
 type NewOrderFormProps = {
   tenantDefaults: TenantSettings;
@@ -41,7 +42,6 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [thbShipping, setThbShipping] = useState(0);
   const [feePercent, setFeePercent] = useState(tenantDefaults.defaultServiceFeePercent);
   const [lines, setLines] = useState<DraftLine[]>([{ ...DEFAULT_LINE }]);
   const [fetchingIndex, setFetchingIndex] = useState<number | null>(null);
@@ -52,6 +52,7 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
     () => lines.reduce((s, l) => s + (l.price || 0) * (l.qty || 0), 0),
     [lines],
   );
+  const shippingTotal = useMemo(() => lines.reduce((s, l) => s + (l.shippingFee || 0), 0), [lines]);
 
   function addLine() {
     setLines((prev) => [...prev, { ...DEFAULT_LINE }]);
@@ -126,13 +127,14 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
       const result = await createOrder({
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
-        thbShipping,
+        thbShipping: shippingTotal,
         serviceFeePercent: feePercent,
         lines: validLines.map((l) => ({
           title: l.title.trim(),
           url: l.url.trim(),
           qty: l.qty || 1,
           price: l.price,
+          shippingFeeThb: l.shippingFee || 0,
           catalogItemId: l.catalogItemId,
           ...(l.shopeeShopId && l.shopeeItemId
             ? { shopeeShopId: l.shopeeShopId, shopeeItemId: l.shopeeItemId }
@@ -223,7 +225,7 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
                 onSelect={(item) => applyCatalogItem(i, item)}
                 required
               />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-2">
                   <Label>Qty</Label>
                   <Input
@@ -243,9 +245,19 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
                     onChange={(e) => updateLine(i, { price: Number(e.target.value) || 0 })}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Shipping (THB)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={line.shippingFee || ""}
+                    onChange={(e) => updateLine(i, { shippingFee: Number(e.target.value) || 0 })}
+                  />
+                </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Line total: {fmtThb((line.price || 0) * (line.qty || 0))}
+                Line total: {fmtThb((line.price || 0) * (line.qty || 0))} · shipping {fmtThb(line.shippingFee || 0)}
               </p>
             </CardContent>
           </Card>
@@ -260,8 +272,8 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
 
       <ProductInvoiceEditor
         thbSubtotal={quotedSubtotal}
-        thbShipping={thbShipping}
-        onThbShippingChange={setThbShipping}
+        thbShipping={shippingTotal}
+        shippingReadOnly
         feePercent={feePercent}
         onFeePercentChange={setFeePercent}
         rate={tenantDefaults.thbMmkRate}

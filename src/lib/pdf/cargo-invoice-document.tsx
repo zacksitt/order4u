@@ -8,6 +8,7 @@ export type CargoInvoicePdfData = {
   orderCode: string;
   lines: InvoiceLineDisplay[];
   weightKg: number;
+  thbTotalDue: number | null;
   mmkTotalDue: number;
 };
 
@@ -27,6 +28,10 @@ const styles = StyleSheet.create({
   foot: { marginTop: 24, fontSize: 8, color: "#666" },
 });
 
+function fmtThb(n: number) {
+  return `THB ${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+}
+
 function fmtMmk(n: number) {
   return `${n.toLocaleString("en-US")} MMK`;
 }
@@ -36,6 +41,7 @@ export function CargoInvoicePdfDocument({
   orderCode,
   lines,
   weightKg,
+  thbTotalDue,
   mmkTotalDue,
 }: CargoInvoicePdfData) {
   return (
@@ -67,12 +73,12 @@ export function CargoInvoicePdfDocument({
           </View>
           <View style={[styles.totalRow, styles.totalBold]}>
             <Text>Amount due</Text>
-            <Text>{fmtMmk(mmkTotalDue)}</Text>
+            <Text>{thbTotalDue != null ? `${fmtThb(thbTotalDue)} / ${fmtMmk(mmkTotalDue)}` : fmtMmk(mmkTotalDue)}</Text>
           </View>
         </View>
 
         <Text style={styles.foot}>
-          Pay cargo fees in MMK as instructed by your agent. Product goods were invoiced separately.
+          Cargo fee is charged in THB. Pay the MMK equivalent as instructed by your agent.
         </Text>
       </Page>
     </Document>

@@ -2,7 +2,6 @@
 
 import { Package } from "lucide-react";
 
-import { InvoiceBlock } from "@/components/order4u/money-row";
 import { ProductInvoiceCard } from "@/components/order4u/product-invoice-card";
 import { orderItemsToInvoiceLines } from "@/lib/invoice-display";
 import { OrderTimeline } from "@/components/order4u/order-timeline";
@@ -10,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fmtThbLine } from "@/lib/format-money";
+import { fmtCargoFee, fmtThbLine } from "@/lib/format-money";
 import { buildCustomerTimeline } from "@/lib/order-timeline";
 import { isCargoPaid, isProductPaid } from "@/lib/payment-status";
 import { ITEM_STATUS_LABEL, orderSummaryLabel } from "@/lib/status-labels";
@@ -162,29 +161,28 @@ export function PublicOrderView({ order, shopName = "Demo Shop" }: PublicOrderVi
               showDownload={false}
             />
           )}
-          {(order.fulfillment === "cargo_invoiced" ||
-            order.cargoInvoice ||
-            order.fulfillment === "in_transit" ||
-            order.fulfillment === "delivered") && (
+          {order.cargoInvoice && (
             <>
               <Separator />
-              <InvoiceBlock
-                title={
-                  isCargoPaid(order.cargoPaymentStatus)
-                    ? "Cargo invoice (paid)"
-                    : "Cargo invoice — payment due"
-                }
-                snapshot={
-                  order.cargoInvoice ?? {
-                    thbSubtotal: 0,
-                    thbShipping: 0,
-                    rate: 0,
-                    serviceFeeMmk: 0,
-                    mmkTotal: 45000,
-                  }
-                }
-                weightKg={order.cargoInvoice?.weightKg ?? 2.4}
-              />
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">
+                    {isCargoPaid(order.cargoPaymentStatus)
+                      ? "Cargo invoice (paid)"
+                      : "Cargo invoice — payment due"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {order.items.map((item) => (
+                    <div key={item.id} className="flex justify-between gap-3 text-sm">
+                      <span className="min-w-0 break-words">{item.title}</span>
+                      <span className="tabular-nums whitespace-nowrap">Qty {item.qty}</span>
+                    </div>
+                  ))}
+                  <p className="text-sm text-muted-foreground">{order.cargoInvoice.weightKg} kg</p>
+                  <p className="text-lg font-bold tabular-nums">{fmtCargoFee(order.cargoInvoice)}</p>
+                </CardContent>
+              </Card>
             </>
           )}
           {!order.cargoInvoice && order.fulfillment !== "cargo_invoiced" && (

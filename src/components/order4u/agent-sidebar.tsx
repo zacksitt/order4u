@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { NotificationBell } from "@/components/order4u/notification-bell";
+import { ShareAppButton } from "@/components/order4u/share-app-button";
 import { agentFabLink, agentSidebarLinks, isAgentNavActive } from "@/lib/agent-nav-links";
 import { cn } from "@/lib/utils";
 import { logout } from "@/server/actions/auth";
@@ -12,9 +13,11 @@ import type { NotificationFeed } from "@/server/queries/notifications";
 export function AgentSidebar({
   shopName,
   notifications,
+  appUrl,
 }: {
   shopName: string;
   notifications: NotificationFeed;
+  appUrl: string;
 }) {
   const pathname = usePathname();
   const fab = agentFabLink();
@@ -60,6 +63,9 @@ export function AgentSidebar({
           </Link>
         )}
       </nav>
+      <div className="border-t border-border p-3">
+        <ShareAppButton url={appUrl} className="w-full justify-start" />
+      </div>
       <form action={logout} className="border-t border-border p-3">
         <button type="submit" className="w-full rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
           Sign out

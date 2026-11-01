@@ -17,7 +17,7 @@ async function getAssignedOrder(orderId: string, session: { userId: string; tena
       tenantId: session.tenantId,
       assignedCargoUserId: session.userId,
     },
-    include: { items: true, cargoInvoice: true },
+    include: { items: true, cargoInvoice: true, productInvoice: true, tenant: { select: { defaultThbMmkRate: true } } },
   });
 }
 
@@ -114,7 +114,7 @@ export async function submitCargoCheck(input: {
 const issueInvoiceSchema = z.object({
   orderId: z.string(),
   chargeableWeightKg: z.number().positive(),
-  mmkTotalDue: z.number().int().positive(),
+  thbTotalDue: z.number().positive(),
 });
 
 export async function issueCargoInvoice(raw: z.infer<typeof issueInvoiceSchema>): Promise<ActionResult> {
@@ -126,12 +126,22 @@ export async function issueCargoInvoice(raw: z.infer<typeof issueInvoiceSchema>)
   if (!order) return { ok: false, error: "Order not found." };
   if (order.cargoInvoice) return { ok: false, error: "Cargo invoice already issued." };
 
+  const rate = order.productInvoice
+    ? Number(order.productInvoice.rateThbMmk)
+    : Number(order.tenant.defaultThbMmkRate);
+  if (!Number.isFinite(rate) || rate <= 0) {
+    return { ok: false, error: "No THB to MMK rate on this order." };
+  }
+  const mmkTotalDue = Math.round(parsed.data.thbTotalDue * rate);
+  if (mmkTotalDue <= 0) return { ok: false, error: "Cargo fee is too small to convert." };
+
   await prisma.$transaction(async (tx) => {
     await tx.cargoInvoice.create({
       data: {
         orderId: parsed.data.orderId,
         chargeableWeightKg: parsed.data.chargeableWeightKg,
-        mmkTotalDue: parsed.data.mmkTotalDue,
+        thbTotalDue: parsed.data.thbTotalDue,
+        mmkTotalDue,
       },
     });
     await tx.order.update({
@@ -147,7 +157,7 @@ export async function issueCargoInvoice(raw: z.infer<typeof issueInvoiceSchema>)
       entityId: parsed.data.orderId,
       userId: session.userId,
       action: "cargo_invoice_issued",
-      detail: `weight ${parsed.data.chargeableWeightKg} mmk ${parsed.data.mmkTotalDue}`,
+      detail: `weight ${parsed.data.chargeableWeightKg} thb ${parsed.data.thbTotalDue}`,
     });
     await notifyUser(tx, {
       tenantId: session.tenantId,

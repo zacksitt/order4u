@@ -32,8 +32,8 @@ export function CargoWorkflowPanel({ order }: CargoWorkflowPanelProps) {
   const [weightKg, setWeightKg] = useState(
     order.cargoInvoice ? String(order.cargoInvoice.weightKg) : "2.4",
   );
-  const [mmkDue, setMmkDue] = useState(
-    order.cargoInvoice ? String(order.cargoInvoice.mmkTotal) : "45000",
+  const [thbDue, setThbDue] = useState(
+    order.cargoInvoice?.thbTotal != null ? String(order.cargoInvoice.thbTotal) : "",
   );
 
   function run(action: () => Promise<{ ok: boolean; error?: string }>) {
@@ -101,8 +101,8 @@ export function CargoWorkflowPanel({ order }: CargoWorkflowPanelProps) {
                   <Input value={weightKg} onChange={(e) => setWeightKg(e.target.value)} />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">MMK due</Label>
-                  <Input value={mmkDue} onChange={(e) => setMmkDue(e.target.value)} />
+                  <Label className="text-xs">THB due</Label>
+                  <Input value={thbDue} onChange={(e) => setThbDue(e.target.value)} />
                 </div>
               </div>
               <Button
@@ -114,7 +114,7 @@ export function CargoWorkflowPanel({ order }: CargoWorkflowPanelProps) {
                     issueCargoInvoice({
                       orderId: order.id,
                       chargeableWeightKg: Number(weightKg) || 0,
-                      mmkTotalDue: Math.round(Number(mmkDue) || 0),
+                      thbTotalDue: Number(thbDue) || 0,
                     }),
                   )
                 }
