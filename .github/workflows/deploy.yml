@@ -20,25 +20,6 @@ jobs:
           mkdir -p ~/.ssh
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan 146.190.100.116 >> ~/.ssh/known_hosts
-          ssh root@146.190.100.116 'bash -s' << 'REMOTE'
-          set -euo pipefail
-          if [ -s "$HOME/.nvm/nvm.sh" ]; then
-            . "$HOME/.nvm/nvm.sh"
-          fi
-          if ! command -v npm >/dev/null 2>&1; then
-            # Non-interactive SSH skips the login shell, where Node is installed.
-            eval "$(bash -ic 'printf "PATH=%q\n" "$PATH"' 2>/dev/null)" || true
-          fi
-          if ! command -v npm >/dev/null 2>&1; then
-            echo "npm not found on the server PATH" >&2
-            exit 127
-          fi
-          cd /root/app/order4u
-          git pull origin main
-          npm ci
-          npx prisma generate
-          npm run build
-          npx prisma db push
-          pm2 restart order4u
-          REMOTE
+          ssh-keyscan -H 146.190.100.116 >> ~/.ssh/known_hosts
+          scp scripts/remote-deploy.sh root@146.190.100.116:/tmp/order4u-deploy.sh
+          ssh root@146.190.100.116 "bash /tmp/order4u-deploy.sh"
