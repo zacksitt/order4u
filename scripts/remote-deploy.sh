@@ -62,6 +62,15 @@ ensure_node() {
   command -v npm >/dev/null
 }
 
+install_deps() {
+  cd "$APP_DIR"
+  if npm ci; then
+    return 0
+  fi
+  echo "npm ci could not use the lockfile; installing dependencies instead"
+  npm install --no-audit --no-fund
+}
+
 sync_repo() {
   if [ ! -d "$APP_DIR/.git" ]; then
     echo "missing git checkout at $APP_DIR" >&2
@@ -90,10 +99,9 @@ restart_app() {
 }
 
 step "Find or install Node.js" ensure_node
-echo "node $(command -v node) $(node -v)"
-echo "npm $(command -v npm) $(npm -v)"
+echo "::notice::node $(node -v) at $(command -v node), npm $(npm -v) at $(command -v npm)"
 step "Update code" sync_repo
-step "Install dependencies" npm ci
+step "Install dependencies" install_deps
 step "Build" npm run build
 step "Update database" npx prisma db push
 step "Ensure pm2" ensure_pm2
