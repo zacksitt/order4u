@@ -3,19 +3,34 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { NotificationBell } from "@/components/order4u/notification-bell";
 import { agentFabLink, agentSidebarLinks, isAgentNavActive } from "@/lib/agent-nav-links";
 import { cn } from "@/lib/utils";
 import { logout } from "@/server/actions/auth";
+import type { NotificationFeed } from "@/server/queries/notifications";
 
-export function AgentSidebar({ shopName }: { shopName: string }) {
+export function AgentSidebar({
+  shopName,
+  notifications,
+}: {
+  shopName: string;
+  notifications: NotificationFeed;
+}) {
   const pathname = usePathname();
   const fab = agentFabLink();
 
   return (
     <aside className="hidden md:flex md:w-56 md:flex-col md:border-r md:border-border md:bg-card md:shrink-0">
-      <div className="border-b border-border px-4 py-5">
-        <p className="text-xs font-semibold uppercase tracking-wider text-primary">Order4U</p>
-        <p className="mt-1 text-sm font-medium">{shopName}</p>
+      <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-5">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Order4U</p>
+          <p className="mt-1 text-sm font-medium">{shopName}</p>
+        </div>
+        <NotificationBell
+          items={notifications.items}
+          unreadCount={notifications.unreadCount}
+          align="left"
+        />
       </div>
       <nav className="flex flex-1 flex-col gap-1 p-3">
         {agentSidebarLinks().map(({ href, label, icon: Icon }) => {

@@ -47,5 +47,6 @@ export function orderSummaryLabel(
     return "At cargo";
   }
   if (fulfillment === "handed_to_cargo") return "With cargo";
+  if (fulfillment === "ready_for_cargo") return "Ready for cargo";
   return "Agent Buying";
 }

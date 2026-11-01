@@ -91,9 +91,9 @@ export function PublicOrderView({ order, shopName = "Demo Shop" }: PublicOrderVi
             <Package className="h-8 w-8 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="font-semibold truncate">{heroItem?.title ?? "Your items"}</p>
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="line-clamp-2 font-semibold break-words">{heroItem?.title ?? "Your items"}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {order.items.length} item{order.items.length !== 1 ? "s" : ""}
                 </p>
@@ -134,7 +134,7 @@ export function PublicOrderView({ order, shopName = "Demo Shop" }: PublicOrderVi
             <Card key={item.id}>
               <CardContent className="flex justify-between gap-3 p-4 text-sm">
                 <div className="min-w-0">
-                  <p className="font-medium">{item.title}</p>
+                  <p className="font-medium break-words">{item.title}</p>
                   <p className="text-xs text-muted-foreground mt-1">Qty {item.qty}</p>
                 </div>
                 <div className="shrink-0 text-right">

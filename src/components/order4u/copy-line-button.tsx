@@ -4,13 +4,15 @@ import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type CopyLineButtonProps = {
   text: string;
   label?: string;
+  className?: string;
 };
 
-export function CopyLineButton({ text, label = "Copy link" }: CopyLineButtonProps) {
+export function CopyLineButton({ text, label = "Copy link", className }: CopyLineButtonProps) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -28,7 +30,7 @@ export function CopyLineButton({ text, label = "Copy link" }: CopyLineButtonProp
   }
 
   return (
-    <Button type="button" variant="outline" size="sm" onClick={copy} className="w-full sm:w-auto">
+    <Button type="button" variant="outline" size="sm" onClick={copy} className={cn("w-full sm:w-auto", className)}>
       {copied ? <Check className="text-emerald-600" /> : <Copy />}
       {copied ? "Copied" : label}
     </Button>

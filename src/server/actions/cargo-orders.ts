@@ -5,6 +5,8 @@ import { z } from "zod";
 
 import { requireCargo } from "@/server/auth/session";
 import { prisma } from "@/server/db";
+import { appendAction } from "@/server/services/actions-log";
+import { notifyUser } from "@/server/services/notifications";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -33,9 +35,18 @@ export async function markCargoReceived(orderId: string): Promise<ActionResult> 
     return { ok: false, error: "Order must be handed to cargo first." };
   }
 
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { fulfillmentStatus: "cargo_received" },
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { fulfillmentStatus: "cargo_received" },
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: orderId,
+      userId: session.userId,
+      action: "cargo_received",
+    });
   });
 
   revalidateOrder(orderId, order.publicAccessToken);
@@ -58,23 +69,43 @@ export async function submitCargoCheck(input: {
 
   const hasException = input.items.some((i) => !i.checkOk);
 
-  await prisma.$transaction([
-    ...input.items.map((row) =>
-      prisma.orderItem.update({
+  await prisma.$transaction(async (tx) => {
+    for (const row of input.items) {
+      await tx.orderItem.update({
         where: { id: row.itemId },
         data: {
           cargoCheckOk: row.checkOk,
           cargoCheckNote: row.note ?? null,
         },
-      }),
-    ),
-    prisma.order.update({
+      });
+    }
+    await tx.order.update({
       where: { id: input.orderId },
       data: {
         fulfillmentStatus: hasException ? "cargo_check_exception" : "cargo_check_ok",
       },
-    }),
-  ]);
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: input.orderId,
+      userId: session.userId,
+      action: "cargo_check",
+      detail: input.items.map((row) => `${row.itemId}:${row.checkOk ? "ok" : "exception"}`).join(" "),
+    });
+    if (hasException) {
+      await notifyUser(tx, {
+        tenantId: session.tenantId,
+        userId: order.assignedAgentId,
+        type: "check_exception",
+        orderId: input.orderId,
+        orderCode: order.code,
+        href: `/agent/orders/${input.orderId}`,
+      });
+    }
+  });
+
+  if (hasException) revalidatePath("/agent", "layout");
 
   revalidateOrder(input.orderId, order.publicAccessToken);
   return { ok: true };
@@ -95,25 +126,42 @@ export async function issueCargoInvoice(raw: z.infer<typeof issueInvoiceSchema>)
   if (!order) return { ok: false, error: "Order not found." };
   if (order.cargoInvoice) return { ok: false, error: "Cargo invoice already issued." };
 
-  await prisma.$transaction([
-    prisma.cargoInvoice.create({
+  await prisma.$transaction(async (tx) => {
+    await tx.cargoInvoice.create({
       data: {
         orderId: parsed.data.orderId,
         chargeableWeightKg: parsed.data.chargeableWeightKg,
         mmkTotalDue: parsed.data.mmkTotalDue,
       },
-    }),
-    prisma.order.update({
+    });
+    await tx.order.update({
       where: { id: parsed.data.orderId },
       data: {
         fulfillmentStatus: "cargo_invoiced",
         cargoPaymentStatus: "awaiting",
       },
-    }),
-  ]);
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: parsed.data.orderId,
+      userId: session.userId,
+      action: "cargo_invoice_issued",
+      detail: `weight ${parsed.data.chargeableWeightKg} mmk ${parsed.data.mmkTotalDue}`,
+    });
+    await notifyUser(tx, {
+      tenantId: session.tenantId,
+      userId: order.assignedAgentId,
+      type: "cargo_invoice_ready",
+      orderId: parsed.data.orderId,
+      orderCode: order.code,
+      href: `/agent/orders/${parsed.data.orderId}`,
+    });
+  });
 
   revalidateOrder(parsed.data.orderId, order.publicAccessToken);
   revalidatePath(`/agent/orders/${parsed.data.orderId}`);
+  revalidatePath("/agent", "layout");
   return { ok: true };
 }
 
@@ -125,9 +173,18 @@ export async function markCargoPaid(orderId: string): Promise<ActionResult> {
     return { ok: false, error: "Cargo invoice is not awaiting payment." };
   }
 
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { cargoPaymentStatus: "paid", cargoPaidAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { cargoPaymentStatus: "paid", cargoPaidAt: new Date() },
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: orderId,
+      userId: session.userId,
+      action: "cargo_paid",
+    });
   });
 
   revalidateOrder(orderId, order.publicAccessToken);
@@ -143,9 +200,18 @@ export async function markInTransit(orderId: string): Promise<ActionResult> {
     return { ok: false, error: "Mark cargo paid before shipping." };
   }
 
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { fulfillmentStatus: "in_transit" },
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { fulfillmentStatus: "in_transit" },
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: orderId,
+      userId: session.userId,
+      action: "in_transit",
+    });
   });
 
   revalidateOrder(orderId, order.publicAccessToken);
@@ -157,9 +223,18 @@ export async function markDelivered(orderId: string): Promise<ActionResult> {
   const order = await getAssignedOrder(orderId, session);
   if (!order) return { ok: false, error: "Order not found." };
 
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { fulfillmentStatus: "delivered" },
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { fulfillmentStatus: "delivered" },
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: orderId,
+      userId: session.userId,
+      action: "delivered",
+    });
   });
 
   revalidateOrder(orderId, order.publicAccessToken);

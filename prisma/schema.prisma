@@ -45,6 +45,23 @@ enum CargoPaymentStatus {
   paid
 }
 
+enum NotificationType {
+  handed_to_cargo
+  cargo_invoice_ready
+  check_exception
+}
+
+enum Marketplace {
+  shopee
+  lazada
+  other
+}
+
+enum ActionLogEntityType {
+  order
+  tenant
+}
+
 model Tenant {
   id                       String   @id @default(uuid())
   name                     String
@@ -63,6 +80,8 @@ model Tenant {
   customers   Customer[]
   orders      Order[]
   catalogItems CatalogItem[]
+  notifications Notification[]
+  actionsLogs   ActionsLog[]
 
   @@map("tenants")
 }
@@ -80,6 +99,8 @@ model User {
   ordersAsCargo        Order[] @relation("OrderCargoAssignee")
   ordersHandedToCargo  Order[] @relation("OrderHandedBy")
   defaultAgentForTenants Tenant[] @relation("TenantDefaultAgent")
+  notifications        Notification[]
+  actionsLogsUpdated   ActionsLog[] @relation("ActionsLogUpdater")
 
   @@map("users")
 }
@@ -158,6 +179,7 @@ model Order {
   items            OrderItem[]
   productInvoice   ProductInvoice?
   cargoInvoice     CargoInvoice?
+  notifications    Notification[]
 
   @@unique([tenantId, code])
   @@map("orders")
@@ -174,8 +196,11 @@ model OrderItem {
   price          Decimal    @db.Decimal(12, 2)
   actualPrice    Decimal?   @map("actual_price") @db.Decimal(12, 2)
   status         ItemStatus @default(pending_purchase)
-  cargoCheckOk   Boolean?   @map("cargo_check_ok")
+  cargoCheckOk   Boolean?    @map("cargo_check_ok")
   cargoCheckNote String?    @map("cargo_check_note")
+  marketplace    Marketplace?
+  shopeeShopId   String?     @map("shopee_shop_id")
+  shopeeItemId   String?     @map("shopee_item_id")
 
   order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   catalogItem CatalogItem? @relation(fields: [catalogItemId], references: [id])
@@ -210,4 +235,38 @@ model CargoInvoice {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("cargo_invoices")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  tenantId  String           @map("tenant_id")
+  userId    String           @map("user_id")
+  type      NotificationType
+  orderId   String           @map("order_id")
+  readAt    DateTime?        @map("read_at")
+  payload   Json
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model ActionsLog {
+  id         String              @id @default(uuid())
+  tenantId   String              @map("tenant_id")
+  entityType ActionLogEntityType @map("entity_type")
+  entityId   String              @map("entity_id")
+  actions    String[]
+  updatedBy  String              @map("updated_by")
+  updatedAt  DateTime            @updatedAt @map("updated_at")
+
+  tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  updater User   @relation("ActionsLogUpdater", fields: [updatedBy], references: [id])
+
+  @@unique([tenantId, entityType, entityId])
+  @@map("actions_logs")
 }

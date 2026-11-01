@@ -30,7 +30,7 @@ export default async function AgentReportsPage() {
     <>
       <PageHeader
         title="Reports"
-        description="Shop-level summaries for your assigned orders."
+        description=""
       />
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -61,10 +61,10 @@ export default async function AgentReportsPage() {
 
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle className="text-base">Margin preview (quoted vs actual THB)</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-base">Margin</CardTitle>
+          {/* <CardDescription>
             Lines where actual pay is recorded — agent-only; CSV export can be added next.
-          </CardDescription>
+          </CardDescription> */}
         </CardHeader>
         <CardContent>
           {withMargin.length === 0 ? (

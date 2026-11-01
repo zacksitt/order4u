@@ -22,7 +22,7 @@ export default async function CargoQueuePage() {
       <div className="space-y-3">
         {queue.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-12">
-            No shipments assigned to you. Sign in as cargo1@demo.shop after seed to see ORD-9B4C2R.
+            No shipments assigned to you.
           </p>
         ) : (
           queue.map((order) => (

@@ -13,8 +13,11 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import type { TenantSettings } from "@/lib/agent-settings";
 import { fmtThb } from "@/lib/format-money";
+import { isLazadaShortUrl } from "@/lib/lazada";
+import { isShopeeShortUrl } from "@/lib/shopee";
 import type { CatalogItem } from "@/lib/types";
 import { createOrder } from "@/server/actions/agent-orders";
+import { lookupProductUrl } from "@/server/actions/shopee";
 
 type DraftLine = {
   title: string;
@@ -22,6 +25,8 @@ type DraftLine = {
   qty: number;
   price: number;
   catalogItemId?: string;
+  shopeeShopId?: string;
+  shopeeItemId?: string;
 };
 
 const DEFAULT_LINE: DraftLine = { title: "", url: "", qty: 1, price: 0 };
@@ -39,6 +44,9 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
   const [thbShipping, setThbShipping] = useState(0);
   const [feePercent, setFeePercent] = useState(tenantDefaults.defaultServiceFeePercent);
   const [lines, setLines] = useState<DraftLine[]>([{ ...DEFAULT_LINE }]);
+  const [fetchingIndex, setFetchingIndex] = useState<number | null>(null);
+  const [lineErrors, setLineErrors] = useState<Record<number, string>>({});
+  const [lineNotes, setLineNotes] = useState<Record<number, string>>({});
 
   const quotedSubtotal = useMemo(
     () => lines.reduce((s, l) => s + (l.price || 0) * (l.qty || 0), 0),
@@ -63,7 +71,43 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
       url: item.url,
       price: item.price,
       catalogItemId: item.id,
+      shopeeShopId: undefined,
+      shopeeItemId: undefined,
     });
+  }
+
+  async function fetchListing(index: number) {
+    const url = lines[index]?.url.trim() ?? "";
+    setLineErrors((prev) => ({ ...prev, [index]: "" }));
+    setLineNotes((prev) => ({ ...prev, [index]: "" }));
+    setFetchingIndex(index);
+    const result = await lookupProductUrl(url);
+    setFetchingIndex(null);
+    if (!result.ok) {
+      setLineErrors((prev) => ({ ...prev, [index]: result.error }));
+      return;
+    }
+    const currentUrl = lines[index]?.url ?? "";
+    const replaceUrl =
+      (isShopeeShortUrl(currentUrl) || isLazadaShortUrl(currentUrl)) && result.canonicalUrl
+        ? result.canonicalUrl
+        : undefined;
+    updateLine(index, {
+      title: result.title,
+      ...(result.priceThb != null ? { price: result.priceThb } : {}),
+      ...(replaceUrl ? { url: replaceUrl } : {}),
+      ...(result.shopId && result.itemId
+        ? { shopeeShopId: result.shopId, shopeeItemId: result.itemId }
+        : { shopeeShopId: undefined, shopeeItemId: undefined }),
+    });
+    if (result.priceThb != null) return;
+    setLineNotes((prev) => ({
+      ...prev,
+      [index]:
+        result.source === "video"
+          ? "This link is a Shopee video, not a product page. Filled the caption. Enter the THB price."
+          : "Name filled. Enter the THB price.",
+    }));
   }
 
   function submit() {
@@ -90,6 +134,9 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
           qty: l.qty || 1,
           price: l.price,
           catalogItemId: l.catalogItemId,
+          ...(l.shopeeShopId && l.shopeeItemId
+            ? { shopeeShopId: l.shopeeShopId, shopeeItemId: l.shopeeItemId }
+            : {}),
         })),
       });
       if (!result.ok) {
@@ -112,7 +159,12 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
             <FieldLabel htmlFor="name" required>
               Name
             </FieldLabel>
-            <Input id="name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+            <Input 
+            id="name" 
+            value={customerName} 
+            onChange={(e) => setCustomerName(e.target.value)} 
+            placeholder="Type name"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Phone number</Label>
@@ -120,7 +172,7 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
               id="phone"
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="Optional — agent only, not on track page"
+              placeholder="Type phone number (optional)"
             />
           </div>
         </CardContent>
@@ -136,19 +188,41 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <FieldLabel required>Product URL</FieldLabel>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input
+                    value={line.url}
+                    onChange={(e) => {
+                      updateLine(i, {
+                        url: e.target.value,
+                        catalogItemId: undefined,
+                        shopeeShopId: undefined,
+                        shopeeItemId: undefined,
+                      });
+                      setLineErrors((prev) => ({ ...prev, [i]: "" }));
+                      setLineNotes((prev) => ({ ...prev, [i]: "" }));
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    disabled={fetchingIndex === i || !line.url.trim()}
+                    onClick={() => fetchListing(i)}
+                  >
+                    {fetchingIndex === i ? "Fetching…" : "Fetch info"}
+                  </Button>
+                </div>
+                {lineErrors[i] ? <p className="text-sm text-destructive">{lineErrors[i]}</p> : null}
+                {lineNotes[i] ? <p className="text-sm text-muted-foreground">{lineNotes[i]}</p> : null}
+              </div>
               <ItemSearchCombobox
                 value={line.title}
                 onChange={(title) => updateLine(i, { title, catalogItemId: undefined })}
                 onSelect={(item) => applyCatalogItem(i, item)}
                 required
               />
-              <div className="space-y-2">
-                <FieldLabel required>Product URL</FieldLabel>
-                <Input
-                  value={line.url}
-                  onChange={(e) => updateLine(i, { url: e.target.value, catalogItemId: undefined })}
-                />
-              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Qty</Label>

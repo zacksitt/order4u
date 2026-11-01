@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { requireAgent } from "@/server/auth/session";
 import { prisma } from "@/server/db";
+import { appendAction } from "@/server/services/actions-log";
 
 const updateSchema = z.object({
   shopName: z.string().min(1),
@@ -20,14 +21,35 @@ export async function updateTenantSettings(raw: z.infer<typeof updateSchema>): P
   const parsed = updateSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid settings." };
 
-  await prisma.tenant.update({
+  const current = await prisma.tenant.findUniqueOrThrow({
     where: { id: session.tenantId },
-    data: {
-      name: parsed.data.shopName,
-      defaultThbMmkRate: parsed.data.thbMmkRate,
-      defaultServiceFeePercent: parsed.data.defaultServiceFeePercent,
-      paymentInstructions: parsed.data.paymentInstructions,
-    },
+    select: { defaultThbMmkRate: true, defaultServiceFeePercent: true },
+  });
+  const beforeRate = Number(current.defaultThbMmkRate);
+  const beforeFee = Number(current.defaultServiceFeePercent);
+  const rateChanged = beforeRate !== parsed.data.thbMmkRate;
+  const feeChanged = beforeFee !== parsed.data.defaultServiceFeePercent;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tenant.update({
+      where: { id: session.tenantId },
+      data: {
+        name: parsed.data.shopName,
+        defaultThbMmkRate: parsed.data.thbMmkRate,
+        defaultServiceFeePercent: parsed.data.defaultServiceFeePercent,
+        paymentInstructions: parsed.data.paymentInstructions,
+      },
+    });
+    if (rateChanged || feeChanged) {
+      await appendAction(tx, {
+        tenantId: session.tenantId,
+        entityType: "tenant",
+        entityId: session.tenantId,
+        userId: session.userId,
+        action: "settings_updated",
+        detail: `rate ${beforeRate} to ${parsed.data.thbMmkRate} fee ${beforeFee} to ${parsed.data.defaultServiceFeePercent}`,
+      });
+    }
   });
 
   revalidatePath("/agent/settings");

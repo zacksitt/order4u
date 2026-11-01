@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { marketplaceFromLine } from "@/lib/marketplace";
 import { generateOrderCode, generatePublicAccessToken } from "@/lib/order-code";
 import { prisma } from "@/server/db";
 import { buildProductInvoiceSnapshot, productInvoiceToDb } from "@/server/services/invoices";
@@ -10,6 +11,8 @@ export const orderLineSchema = z.object({
   qty: z.number().int().min(1),
   price: z.number().min(0),
   catalogItemId: z.string().optional(),
+  shopeeShopId: z.string().min(1).optional(),
+  shopeeItemId: z.string().min(1).optional(),
 });
 
 export type OrderLineInput = z.infer<typeof orderLineSchema>;
@@ -79,6 +82,7 @@ export async function createOrderForTenant(input: {
           qty: line.qty,
           price: line.price,
           catalogItemId: lineCatalogIds[i] ?? null,
+          ...marketplaceFromLine(line),
         })),
       },
       productInvoice: {

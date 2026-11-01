@@ -9,7 +9,9 @@ import { canHandOrderToCargo } from "@/lib/order-rules";
 import { requireAgent } from "@/server/auth/session";
 import { prisma } from "@/server/db";
 import { mapOrder, orderDetailInclude } from "@/server/mappers/order";
+import { appendAction } from "@/server/services/actions-log";
 import { createOrderForTenant, orderLineSchema } from "@/server/services/create-order";
+import { notifyUser } from "@/server/services/notifications";
 
 const lineSchema = orderLineSchema;
 
@@ -60,9 +62,18 @@ export async function markProductPaid(orderId: string): Promise<ActionResult> {
   if (!order) return { ok: false, error: "Order not found." };
   if (order.productPaymentStatus === "paid") return { ok: true };
 
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { productPaymentStatus: "paid", productPaidAt: new Date() },
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: orderId },
+      data: { productPaymentStatus: "paid", productPaidAt: new Date() },
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: orderId,
+      userId: session.userId,
+      action: "product_paid",
+    });
   });
 
   revalidatePath(`/agent/orders/${orderId}`);
@@ -94,16 +105,28 @@ export async function updateOrderItemStatus(input: {
     include: { items: true },
   });
   if (!order) return { ok: false, error: "Order not found." };
-  if (!order.items.some((i) => i.id === input.itemId)) {
-    return { ok: false, error: "Item not found." };
-  }
+  const item = order.items.find((i) => i.id === input.itemId);
+  if (!item) return { ok: false, error: "Item not found." };
 
-  await prisma.orderItem.update({
-    where: { id: input.itemId },
-    data: {
-      status: statusParsed.data,
-      ...(input.actualPrice !== undefined ? { actualPrice: input.actualPrice } : {}),
-    },
+  const detailParts = [input.itemId, item.status, statusParsed.data];
+  if (input.actualPrice !== undefined) detailParts.push(String(input.actualPrice));
+
+  await prisma.$transaction(async (tx) => {
+    await tx.orderItem.update({
+      where: { id: input.itemId },
+      data: {
+        status: statusParsed.data,
+        ...(input.actualPrice !== undefined ? { actualPrice: input.actualPrice } : {}),
+      },
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: input.orderId,
+      userId: session.userId,
+      action: "item_status_changed",
+      detail: detailParts.join(" "),
+    });
   });
 
   revalidatePath(`/agent/orders/${input.orderId}`);
@@ -135,18 +158,37 @@ export async function handOrderToCargo(input: {
   });
   if (!cargoMember) return { ok: false, error: "Selected user is not cargo staff for this shop." };
 
-  await prisma.order.update({
-    where: { id: input.orderId },
-    data: {
-      assignedCargoUserId: input.cargoUserId,
-      handedToCargoByUserId: session.userId,
-      handedToCargoAt: new Date(),
-      fulfillmentStatus: "handed_to_cargo",
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: input.orderId },
+      data: {
+        assignedCargoUserId: input.cargoUserId,
+        handedToCargoByUserId: session.userId,
+        handedToCargoAt: new Date(),
+        fulfillmentStatus: "handed_to_cargo",
+      },
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: input.orderId,
+      userId: session.userId,
+      action: "handed_to_cargo",
+      detail: input.cargoUserId,
+    });
+    await notifyUser(tx, {
+      tenantId: session.tenantId,
+      userId: input.cargoUserId,
+      type: "handed_to_cargo",
+      orderId: input.orderId,
+      orderCode: order.code,
+      href: `/cargo/orders/${input.orderId}`,
+    });
   });
 
   revalidatePath(`/agent/orders/${input.orderId}`);
   revalidatePath("/agent/orders");
   revalidatePath("/cargo/queue");
+  revalidatePath("/cargo", "layout");
   return { ok: true };
 }

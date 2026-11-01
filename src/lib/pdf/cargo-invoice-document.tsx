@@ -1,6 +1,7 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 
 import type { InvoiceLineDisplay } from "@/lib/invoice-display";
+import "@/lib/pdf/register-font";
 
 export type CargoInvoicePdfData = {
   shopName: string;
@@ -11,14 +12,14 @@ export type CargoInvoicePdfData = {
 };
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontSize: 10, fontFamily: "Helvetica" },
+  page: { padding: 40, fontSize: 10, fontFamily: "Noto Sans Thai" },
   header: { marginBottom: 20 },
   shop: { fontSize: 14, fontWeight: "bold", marginBottom: 4 },
   meta: { color: "#444", marginBottom: 2 },
   table: { marginTop: 12, marginBottom: 16 },
   row: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#eee", paddingVertical: 6 },
   rowHeader: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: "#333", paddingBottom: 4, marginBottom: 4 },
-  colItem: { flex: 1 },
+  colItem: { flex: 1, paddingRight: 8 },
   colQty: { width: 40, textAlign: "right" },
   totals: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: "#333" },
   totalRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
