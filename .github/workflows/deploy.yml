@@ -21,4 +21,4 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan 146.190.100.116 >> ~/.ssh/known_hosts
-          ssh root@146.190.100.116 "cd /root/app/order4u && git pull origin main && npm ci && npm run build && npx prisma db push && pm2 restart order4u"
+          ssh root@146.190.100.116 "cd /root/app/order4u && git pull origin main && npm ci && npx prisma generate && npm run build && npx prisma db push && pm2 restart order4u"
