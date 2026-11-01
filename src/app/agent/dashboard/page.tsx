@@ -22,7 +22,7 @@ export default async function AgentDashboardPage() {
       <PageHeader
         className="sm:items-end"
         title="Dashboard"
-        description="Overview of your shop — Thailand sourcing to cargo handoff."
+        description=""
         action={
           <div className="flex flex-wrap items-center gap-2">
             <p className="flex min-h-11 items-center gap-2 rounded-[10px] border border-border bg-card px-3.5 text-[13px]">

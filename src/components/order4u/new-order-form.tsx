@@ -158,8 +158,8 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <FieldLabel htmlFor="name" required>
-              Name
+            <FieldLabel htmlFor="name">
+              Name <span className="text-red-500">*</span>
             </FieldLabel>
             <Input 
             id="name" 
@@ -174,7 +174,7 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
               id="phone"
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="Type phone number (optional)"
+              placeholder="Type phone number"
             />
           </div>
         </CardContent>
@@ -191,10 +191,11 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-2">
-                <FieldLabel required>Product URL</FieldLabel>
+                <FieldLabel>Product URL <span className="text-red-500">*</span></FieldLabel>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Input
                     value={line.url}
+                    placeholder="Type URL from Shopee or Lazada"
                     onChange={(e) => {
                       updateLine(i, {
                         url: e.target.value,
@@ -227,7 +228,7 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
               />
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-2">
-                  <Label>Qty</Label>
+                  <Label>Qty <span className="text-red-500">*</span></Label>
                   <Input
                     type="number"
                     min={1}
@@ -236,7 +237,7 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <FieldLabel required>Price (THB)</FieldLabel>
+                  <FieldLabel>Price (THB) <span className="text-red-500">*</span></FieldLabel>
                   <Input
                     type="number"
                     min={0}

@@ -20,7 +20,7 @@ export default async function AgentLayout({ children }: LayoutProps<"/agent">) {
       <div className="flex min-h-screen flex-1 flex-col pb-24 md:pb-0">
         <div className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Order4U Agent</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Order4U</p>
             <p className="text-sm text-muted-foreground">{shopName}</p>
           </div>
           <div className="flex items-center gap-1">

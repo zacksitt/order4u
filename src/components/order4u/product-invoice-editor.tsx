@@ -86,7 +86,7 @@ export function ProductInvoiceEditor({
           <p className="text-xs text-muted-foreground">Default from settings is {initialFeePercent}%.</p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="th-shipping">TH shipping (THB)</Label>
+          <Label htmlFor="th-shipping">Order Shipping Fees</Label>
           <Input
             id="th-shipping"
             type="number"

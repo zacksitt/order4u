@@ -23,7 +23,7 @@ export function ItemSearchCombobox({
   value,
   onChange,
   onSelect,
-  label = "Item name / variant",
+  label = "Item name",
   placeholder = "Type name or pick from catalog…",
   required = false,
 }: ItemSearchComboboxProps) {
@@ -64,7 +64,7 @@ export function ItemSearchCombobox({
 
   return (
     <div className="space-y-2">
-      <FieldLabel required={required}>{label}</FieldLabel>
+      <FieldLabel>{label} <span className="text-red-500">*</span></FieldLabel>
       <div className="relative">
         <Input
           value={value}

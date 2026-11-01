@@ -53,7 +53,7 @@ export function InvoiceBlock({
     <div className="space-y-3 rounded-xl border border-border bg-card p-4">
       <h3 className="font-semibold">{title}</h3>
       <MoneyRow label="Subtotal (THB)" thb={snapshot.thbSubtotal} />
-      <MoneyRow label="TH shipping (THB)" thb={snapshot.thbShipping} />
+      <MoneyRow label="Order Shipping Fees" thb={snapshot.thbShipping} />
       <MoneyRow label="THB total" thb={thbTotal} bold />
       {feePercent > 0 && (
         <MoneyRow label={`${feeLabel} (THB)`} thb={feeThb} mmk={snapshot.serviceFeeMmk} />

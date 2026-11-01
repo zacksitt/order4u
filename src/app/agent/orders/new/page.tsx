@@ -9,7 +9,7 @@ export default async function NewOrderPage() {
     <>
       <PageHeader
         title="New order"
-        description="Search catalog or paste product links. Customer invoice shows quoted THB; set actual pay per item after you purchase."
+        description="Please filed the required fields with *"
       />
       <NewOrderForm tenantDefaults={tenantDefaults} />
     </>

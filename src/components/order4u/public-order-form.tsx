@@ -136,7 +136,7 @@ export function PublicOrderForm({
                 />
               </div>
               <div className="space-y-2">
-                <FieldLabel required>Item name / variant</FieldLabel>
+                <FieldLabel required>Item name</FieldLabel>
                 <Input value={line.title} onChange={(e) => updateLine(i, { title: e.target.value })} />
               </div>
               <div className="grid grid-cols-2 gap-3">

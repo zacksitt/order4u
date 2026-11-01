@@ -79,7 +79,7 @@ export function ProductInvoicePdfDocument({
             <Text>{fmtThb(snapshot.thbSubtotal)}</Text>
           </View>
           <View style={styles.totalRow}>
-            <Text>Thailand shipping</Text>
+            <Text>Order Shipping Fees</Text>
             <Text>{fmtThb(snapshot.thbShipping)}</Text>
           </View>
           <View style={styles.totalRow}>
