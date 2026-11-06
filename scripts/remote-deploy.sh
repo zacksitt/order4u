@@ -19,7 +19,7 @@ step() {
   echo "::endgroup::"
   if [ "$code" -ne 0 ]; then
     local detail
-    detail=$(tail -n 20 "$log" | tr '\n' ' ' | tr '%' ' ' | tr '\r' ' ' | cut -c1-500)
+    detail=$(tail -n 40 "$log" | tr '\n' ' ' | tr '%' ' ' | tr '\r' ' ' | cut -c1-4000)
     echo "::error title=${name}::${detail}"
     exit "$code"
   fi
@@ -103,7 +103,7 @@ echo "::notice::node $(node -v) at $(command -v node), npm $(npm -v) at $(comman
 step "Update code" sync_repo
 step "Install dependencies" install_deps
 step "Build" npm run build
-step "Update database" npx prisma db push
+step "Update database" npx prisma db push --accept-data-loss
 step "Ensure pm2" ensure_pm2
 step "Restart app" restart_app
 echo "Deploy finished"
