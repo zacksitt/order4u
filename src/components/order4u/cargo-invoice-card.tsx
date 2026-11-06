@@ -8,7 +8,8 @@ export function CargoInvoiceBreakdown({ invoice }: { invoice: NonNullable<Order[
   return (
     <div className="flex flex-col gap-2 text-sm">
       {invoice.lines.length > 0 && (
-        <div className="overflow-hidden rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="min-w-[28rem]">
           <div className="grid grid-cols-[minmax(0,1fr)_2.5rem_4.5rem_5rem_5.5rem] gap-2 bg-muted/60 px-3 py-2 text-xs font-semibold text-muted-foreground">
             <span>Category</span>
             <span className="text-right">Qty</span>
@@ -28,6 +29,7 @@ export function CargoInvoiceBreakdown({ invoice }: { invoice: NonNullable<Order[
               <span className="text-right tabular-nums">{fmtThb(line.totalThb)}</span>
             </div>
           ))}
+          </div>
         </div>
       )}
       <div className="flex flex-col gap-1 pt-1 text-[13px] text-slate-600">

@@ -16,7 +16,7 @@ export function CustomerNav() {
         <Link href="/customer/orders" className="font-bold text-primary shrink-0">
           Order4U
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
           <Link
             href="/customer/orders"
             className={`text-xs font-medium ${onOrders ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}

@@ -36,7 +36,7 @@ export function InvoiceBlock({
   title,
   snapshot,
   weightKg,
-  hideShipping = false,
+  hideShipping = true,
 }: {
   title: string;
   snapshot: InvoiceSnapshot | (Omit<InvoiceSnapshot, "serviceFeePercent" | "serviceFeeThb"> & {

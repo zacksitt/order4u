@@ -63,7 +63,7 @@ export function HandToCargoPanel({ order, cargoUsers }: HandToCargoPanelProps) {
       <Label htmlFor="cargo-assignee">Assign cargo staff</Label>
       <select
         id="cargo-assignee"
-        className="flex h-9 w-full rounded-lg border border-input bg-background px-3 text-sm"
+        className="flex h-11 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-base sm:h-9 sm:text-sm"
         value={cargoUserId}
         onChange={(e) => setCargoUserId(e.target.value)}
         disabled={pending || cargoUsers.length === 0}

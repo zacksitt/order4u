@@ -24,9 +24,10 @@ Open [http://localhost:3000/login](http://localhost:3000/login).
 
 | Role  | Email             | Password |
 | ----- | ----------------- | -------- |
-| Agent | agent@demo.shop   | demo     |
-| Cargo | cargo1@demo.shop  | demo     |
-| Cargo | cargo2@demo.shop  | demo     |
+| Agent    | agent@demo.shop    | demo     |
+| Cargo    | cargo1@demo.shop   | demo     |
+| Cargo    | cargo2@demo.shop   | demo     |
+| Customer | customer@demo.shop | demo     |
 
 Customer track (no login): `/o/demo-token-123`
 

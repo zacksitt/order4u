@@ -63,7 +63,7 @@ export function PublicOrderView({ order, shopName = "Demo Shop", variant = "publ
             </Card>
             {order.productInvoice && (
               <ProductInvoiceCard
-                title="Amount due"
+                title="Product invoice"
                 snapshot={order.productInvoice}
                 lines={orderItemsToInvoiceLines(order.items)}
                 orderCode={order.code}

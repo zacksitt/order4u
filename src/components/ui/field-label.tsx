@@ -11,11 +11,12 @@ type FieldLabelProps = React.ComponentPropsWithoutRef<typeof Label> & {
 
 export function FieldLabel({ required, className, children, ...props }: FieldLabelProps) {
   return (
-    <Label className={cn(className)} {...props}>
-      {children}
-      {required ? (
-        <span className="ml-1 text-xs font-normal text-muted-foreground">(required)</span>
-      ) : null}
+    <Label
+      className={cn("inline-flex max-w-full flex-wrap items-baseline gap-x-1.5 gap-y-0.5", className)}
+      {...props}
+    >
+      <span className="min-w-0 break-words">{children}</span>
+      {required ? <span className="shrink-0 text-xs font-normal text-muted-foreground">(required)</span> : null}
     </Label>
   );
 }

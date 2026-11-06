@@ -296,47 +296,92 @@ export function CargoOrderDetail({
               Choose a category for each item in the list below to build the invoice.
             </p>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-border">
-              <div className="grid grid-cols-[minmax(0,1fr)_2.5rem_5.5rem_6rem_5.5rem] gap-2 bg-muted/60 px-3 py-2 text-xs font-semibold text-muted-foreground">
-                <span>Category</span>
-                <span className="text-right">Qty</span>
-                <span className="text-right">Weight (kg)</span>
-                <span className="text-right">THB / kg</span>
-                <span className="text-right">Total</span>
-              </div>
+            <>
+            <div className="space-y-3 md:hidden">
               {invoiceDraft.lines.map((line) => {
                 const defaultPrice = categories.find((c) => c.id === line.categoryId)?.cargoPriceThb;
                 return (
-                  <div
-                    key={line.categoryId}
-                    className="grid grid-cols-[minmax(0,1fr)_2.5rem_5.5rem_6rem_5.5rem] items-center gap-2 border-t border-border px-3 py-2 text-sm"
-                  >
-                    <span className="min-w-0 break-words">{line.categoryName}</span>
-                    <span className="text-right tabular-nums">{line.qty}</span>
-                    <input
-                      aria-label={`Weight in kg for ${line.categoryName}`}
-                      inputMode="decimal"
-                      placeholder="0.0"
-                      value={weightInputs[line.categoryId] ?? ""}
-                      onChange={(event) =>
-                        setWeightInputs((prev) => ({ ...prev, [line.categoryId]: event.target.value }))
-                      }
-                      className="h-9 w-full rounded-lg border border-input bg-white px-2 text-right text-sm tabular-nums"
-                    />
-                    <input
-                      aria-label={`Price per kg for ${line.categoryName}`}
-                      inputMode="decimal"
-                      value={priceInputs[line.categoryId] ?? String(defaultPrice ?? line.unitPriceThb)}
-                      onChange={(event) =>
-                        setPriceInputs((prev) => ({ ...prev, [line.categoryId]: event.target.value }))
-                      }
-                      className="h-9 w-full rounded-lg border border-input bg-white px-2 text-right text-sm tabular-nums"
-                    />
-                    <span className="text-right tabular-nums">{fmtThb(line.totalThb)}</span>
+                  <div key={line.categoryId} className="space-y-2 rounded-lg border border-border p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="min-w-0 text-sm font-medium break-words">{line.categoryName}</p>
+                      <span className="shrink-0 text-xs text-muted-foreground">Qty {line.qty}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="min-w-0 space-y-1 text-xs font-semibold text-slate-700">
+                        Weight (kg)
+                        <input
+                          aria-label={`Weight in kg for ${line.categoryName}`}
+                          inputMode="decimal"
+                          placeholder="0.0"
+                          value={weightInputs[line.categoryId] ?? ""}
+                          onChange={(event) =>
+                            setWeightInputs((prev) => ({ ...prev, [line.categoryId]: event.target.value }))
+                          }
+                          className="h-11 w-full min-w-0 rounded-lg border border-input bg-white px-2 text-base tabular-nums"
+                        />
+                      </label>
+                      <label className="min-w-0 space-y-1 text-xs font-semibold text-slate-700">
+                        THB / kg
+                        <input
+                          aria-label={`Price per kg for ${line.categoryName}`}
+                          inputMode="decimal"
+                          value={priceInputs[line.categoryId] ?? String(defaultPrice ?? line.unitPriceThb)}
+                          onChange={(event) =>
+                            setPriceInputs((prev) => ({ ...prev, [line.categoryId]: event.target.value }))
+                          }
+                          className="h-11 w-full min-w-0 rounded-lg border border-input bg-white px-2 text-base tabular-nums"
+                        />
+                      </label>
+                    </div>
+                    <p className="text-right text-sm tabular-nums">{fmtThb(line.totalThb)}</p>
                   </div>
                 );
               })}
             </div>
+            <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
+              <div className="min-w-[36rem]">
+                <div className="grid grid-cols-[minmax(0,1fr)_2.5rem_5.5rem_6rem_5.5rem] gap-2 bg-muted/60 px-3 py-2 text-xs font-semibold text-muted-foreground">
+                  <span>Category</span>
+                  <span className="text-right">Qty</span>
+                  <span className="text-right">Weight (kg)</span>
+                  <span className="text-right">THB / kg</span>
+                  <span className="text-right">Total</span>
+                </div>
+                {invoiceDraft.lines.map((line) => {
+                  const defaultPrice = categories.find((c) => c.id === line.categoryId)?.cargoPriceThb;
+                  return (
+                    <div
+                      key={line.categoryId}
+                      className="grid grid-cols-[minmax(0,1fr)_2.5rem_5.5rem_6rem_5.5rem] items-center gap-2 border-t border-border px-3 py-2 text-sm"
+                    >
+                      <span className="min-w-0 break-words">{line.categoryName}</span>
+                      <span className="text-right tabular-nums">{line.qty}</span>
+                      <input
+                        aria-label={`Weight in kg for ${line.categoryName}`}
+                        inputMode="decimal"
+                        placeholder="0.0"
+                        value={weightInputs[line.categoryId] ?? ""}
+                        onChange={(event) =>
+                          setWeightInputs((prev) => ({ ...prev, [line.categoryId]: event.target.value }))
+                        }
+                        className="h-9 w-full min-w-0 rounded-lg border border-input bg-white px-2 text-right text-sm tabular-nums"
+                      />
+                      <input
+                        aria-label={`Price per kg for ${line.categoryName}`}
+                        inputMode="decimal"
+                        value={priceInputs[line.categoryId] ?? String(defaultPrice ?? line.unitPriceThb)}
+                        onChange={(event) =>
+                          setPriceInputs((prev) => ({ ...prev, [line.categoryId]: event.target.value }))
+                        }
+                        className="h-9 w-full min-w-0 rounded-lg border border-input bg-white px-2 text-right text-sm tabular-nums"
+                      />
+                      <span className="text-right tabular-nums">{fmtThb(line.totalThb)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            </>
           )}
           {invoiceDraft.missing > 0 && invoiceDraft.lines.length > 0 && (
             <p className="text-[13px] text-amber-800">
@@ -353,7 +398,7 @@ export function CargoOrderDetail({
               <span>Subtotal</span>
               <span className="tabular-nums">{fmtThb(invoiceDraft.subtotal)}</span>
             </div>
-            <label className="flex items-center justify-between gap-3 text-slate-600" htmlFor="cargo-discount">
+            <label className="flex flex-col gap-1 text-slate-600 sm:flex-row sm:items-center sm:justify-between sm:gap-3" htmlFor="cargo-discount">
               <span>Discount (THB)</span>
               <input
                 id="cargo-discount"
@@ -361,7 +406,7 @@ export function CargoOrderDetail({
                 placeholder="0"
                 value={discountInput}
                 onChange={(event) => setDiscountInput(event.target.value)}
-                className="h-9 w-28 rounded-lg border border-input bg-white px-2 text-right text-sm tabular-nums"
+                className="h-11 w-full min-w-0 rounded-lg border border-input bg-white px-2 text-right text-base tabular-nums sm:h-9 sm:w-28 sm:text-sm"
               />
             </label>
             <div className="flex items-baseline justify-between border-t border-dashed border-slate-300 pt-2">
@@ -435,14 +480,14 @@ export function CargoOrderDetail({
                       <p className="mt-0.5 text-[13px] text-muted-foreground">Qty {item.qty}</p>
                     </div>
                     {!order.cargoInvoice && (
-                      <label className="flex min-w-[160px] flex-col gap-1 text-[13px] font-semibold text-slate-700">
+                      <label className="flex w-full min-w-0 flex-col gap-1 text-[13px] font-semibold text-slate-700 sm:w-44">
                         Category
                         <select
                           value={categoryIds[item.id] ?? ""}
                           onChange={(event) =>
                             setCategoryIds((prev) => ({ ...prev, [item.id]: event.target.value }))
                           }
-                          className="h-10 rounded-lg border border-input bg-white px-2 text-sm font-medium"
+                          className="h-11 w-full min-w-0 rounded-lg border border-input bg-white px-2 text-base font-medium sm:h-10 sm:text-sm"
                         >
                           <option value="">None</option>
                           {categories.map((category) => (

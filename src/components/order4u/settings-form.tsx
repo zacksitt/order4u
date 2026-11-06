@@ -87,7 +87,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         <Label htmlFor="pay">Payment instructions</Label>
         <textarea
           id="pay"
-          className="flex min-h-[100px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
+          className="flex min-h-[100px] w-full min-w-0 rounded-lg border border-input bg-background px-3 py-2 text-base md:text-sm"
           placeholder="e.g. KBZPay 09 123 456 789 (Ko Aung). Send a screenshot after paying."
           value={paymentInstructions}
           maxLength={MAX_INSTRUCTIONS}
@@ -95,7 +95,7 @@ export function SettingsForm({ initial }: SettingsFormProps) {
         />
         <p className="text-xs text-muted-foreground">Shown to customers on the order form.</p>
       </div>
-      <Button onClick={save} disabled={pending}>
+      <Button className="w-full sm:w-auto" onClick={save} disabled={pending}>
         {pending ? "Saving…" : "Save settings"}
       </Button>
       {message && (

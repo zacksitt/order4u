@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { InvoiceBlock } from "@/components/order4u/money-row";
 import { InvoiceLineItems } from "@/components/order4u/invoice-line-items";
 import { PdfDownloadButton } from "@/components/order4u/pdf-download-button";
@@ -15,6 +17,7 @@ type ProductInvoiceCardProps = {
   /** Public order token — enables PDF download */
   publicToken?: string;
   showDownload?: boolean;
+  headerActions?: ReactNode;
 };
 
 export function ProductInvoiceCard({
@@ -26,6 +29,7 @@ export function ProductInvoiceCard({
   customerName,
   publicToken,
   showDownload = true,
+  headerActions,
 }: ProductInvoiceCardProps) {
   const canDownload = showDownload && publicToken;
 
@@ -39,9 +43,11 @@ export function ProductInvoiceCard({
         </div>
       )}
 
+      {headerActions}
+
       <InvoiceLineItems lines={lines} />
 
-      <InvoiceBlock title={title} snapshot={snapshot} />
+      <InvoiceBlock title={title} snapshot={snapshot} hideShipping />
 
       {canDownload && (
         <PdfDownloadButton

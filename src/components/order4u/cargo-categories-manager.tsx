@@ -77,7 +77,7 @@ export function CargoCategoriesManager({ categories }: { categories: ItemCategor
             required
           />
         </div>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" className="w-full sm:w-auto" disabled={pending}>
           Add category
         </Button>
       </form>
@@ -139,16 +139,17 @@ function CategoryRow({
         <Input inputMode="decimal" value={price} onChange={(event) => setPrice(event.target.value)} />
         <p className="text-xs text-muted-foreground">{fmtThb(category.cargoPriceThb)} per kg</p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex w-full gap-2 sm:w-auto">
         <Button
           type="button"
           size="sm"
+          className="flex-1 sm:flex-none"
           disabled={pending || !dirty}
           onClick={() => onSave({ name, cargoPriceThb: Number(price) })}
         >
           Save
         </Button>
-        <Button type="button" size="sm" variant="outline" disabled={pending} onClick={onDelete}>
+        <Button type="button" size="sm" variant="outline" className="flex-1 sm:flex-none" disabled={pending} onClick={onDelete}>
           Delete
         </Button>
       </div>

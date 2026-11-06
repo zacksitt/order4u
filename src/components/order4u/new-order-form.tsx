@@ -274,7 +274,7 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
                   <Button
                     type="button"
                     variant="outline"
-                    className="shrink-0"
+                    className="w-full shrink-0 sm:w-auto"
                     disabled={fetchingIndex === i || !line.url.trim()}
                     onClick={() => fetchListing(i)}
                   >
@@ -305,8 +305,12 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
                   required
                 />
               )}
-              <div className={isCustomer ? "grid grid-cols-2 gap-3" : "grid grid-cols-3 gap-3"}>
-                <div className="space-y-2">
+              <div
+                className={
+                  isCustomer ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : "grid grid-cols-1 gap-3 sm:grid-cols-3"
+                }
+              >
+                <div className="min-w-0 space-y-2">
                   <FieldLabel htmlFor={`qty-${i}`} required>
                     Qty
                   </FieldLabel>
@@ -319,7 +323,7 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
                     onChange={(e) => updateLine(i, { qty: Number(e.target.value) || 1 })}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <FieldLabel htmlFor={`price-${i}`} required>
                     Price (THB)
                   </FieldLabel>
@@ -333,7 +337,7 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
                   />
                 </div>
                 {!isCustomer && (
-                  <div className="space-y-2">
+                  <div className="min-w-0 space-y-2">
                     <Label htmlFor={`ship-${i}`}>Thai shipping (THB)</Label>
                     <Input
                       id={`ship-${i}`}

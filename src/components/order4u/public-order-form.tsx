@@ -159,8 +159,8 @@ export function PublicOrderForm({
                   maxLength={MAX_ITEM_TITLE}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="min-w-0 space-y-2">
                   <FieldLabel required>Qty</FieldLabel>
                   <Input
                     type="number"
@@ -170,7 +170,7 @@ export function PublicOrderForm({
                     onChange={(e) => updateLine(i, { qty: Number(e.target.value) || 1 })}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <FieldLabel required>Price (THB)</FieldLabel>
                   <Input
                     type="number"

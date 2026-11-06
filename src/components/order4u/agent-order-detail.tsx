@@ -7,9 +7,9 @@ import { useState, useTransition } from "react";
 
 import { CargoInvoiceBreakdown } from "@/components/order4u/cargo-invoice-card";
 import { CopyLineButton } from "@/components/order4u/copy-line-button";
-import { InvoiceLineItems } from "@/components/order4u/invoice-line-items";
 import { OrderProgress } from "@/components/order4u/order-progress";
 import { PdfDownloadButton, PdfShareButton } from "@/components/order4u/pdf-download-button";
+import { ProductInvoiceCard } from "@/components/order4u/product-invoice-card";
 import { StatusPill } from "@/components/order4u/status-pill";
 import { Button } from "@/components/ui/button";
 import { fmtThb } from "@/lib/format-money";
@@ -157,12 +157,12 @@ export function AgentOrderDetail({ order, cargoUsers, trackUrl }: AgentOrderDeta
             (cargoUsers.length === 0 ? (
               <p className="text-sm text-amber-900">No cargo staff in this shop yet. Ask the shop owner to add one.</p>
             ) : (
-              <div className="flex flex-wrap items-end gap-2">
-                <label className="flex flex-col gap-1 text-[13px] font-semibold text-slate-700" htmlFor="cargo-assignee">
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+                <label className="flex min-w-0 flex-col gap-1 text-[13px] font-semibold text-slate-700 sm:min-w-44" htmlFor="cargo-assignee">
                   Cargo staff
                   <select
                     id="cargo-assignee"
-                    className="h-12 rounded-xl border border-input bg-white px-3 text-sm font-medium"
+                    className="h-12 w-full min-w-0 rounded-xl border border-input bg-white px-3 text-base font-medium sm:text-sm"
                     value={cargoUserId}
                     onChange={(event) => setCargoUserId(event.target.value)}
                     disabled={pending}
@@ -175,7 +175,7 @@ export function AgentOrderDetail({ order, cargoUsers, trackUrl }: AgentOrderDeta
                   </select>
                 </label>
                 <Button
-                  className="h-12 min-h-12 rounded-xl px-[22px] text-[15px] font-semibold"
+                  className="h-12 min-h-12 w-full rounded-xl px-[22px] text-[15px] font-semibold sm:w-auto"
                   onClick={handOff}
                   disabled={pending}
                 >
@@ -455,7 +455,7 @@ function ItemRow({
         {ITEM_STATUS_LABEL[item.status]}
       </span>
       {showPriceInput && (
-        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
+        <label className="flex w-full min-w-0 flex-col gap-1 text-xs font-semibold text-slate-700 sm:w-auto">
           Paid (THB)
           <input
             inputMode="decimal"
@@ -463,7 +463,7 @@ function ItemRow({
             value={actualPrice}
             onChange={(event) => setActualPrice(event.target.value)}
             disabled={pending}
-            className="h-10 w-24 rounded-[10px] border border-input bg-white px-2 text-[13px] font-medium"
+            className="h-11 w-full min-w-0 rounded-[10px] border border-input bg-white px-2 text-base font-medium sm:h-10 sm:w-24 sm:text-[13px]"
           />
         </label>
       )}
@@ -504,10 +504,16 @@ function InvoicePanels({ order }: { order: Order }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="flex flex-col gap-3 rounded-[14px] border border-border bg-card p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">Product invoice</h2>
-          {invoice && (
+      {invoice ? (
+        <ProductInvoiceCard
+          title="Product invoice"
+          snapshot={invoice}
+          lines={orderItemsToInvoiceLines(order.items)}
+          orderCode={order.code}
+          customerName={order.customerName}
+          publicToken={order.publicToken}
+          showDownload={false}
+          headerActions={
             <div className="flex flex-wrap justify-end gap-2">
               <PdfShareButton
                 href={productInvoicePdfUrl(order.publicToken)}
@@ -524,27 +530,11 @@ function InvoicePanels({ order }: { order: Order }) {
                 className="h-10 w-auto min-h-10 rounded-[10px] px-3.5 text-[13px] font-semibold"
               />
             </div>
-          )}
-        </div>
-        {invoice ? (
-          <>
-            <InvoiceLineItems lines={orderItemsToInvoiceLines(order.items)} />
-            <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-2.5 text-[13px] text-slate-600">
-              <MoneyRow label="Items" value={fmtThb(invoice.thbSubtotal)} />
-              <MoneyRow label="Thai shipping" value={fmtThb(invoice.thbShipping)} />
-              <MoneyRow label="Items + shipping" value={fmtThb(invoice.thbSubtotal + invoice.thbShipping)} />
-              <MoneyRow label={`Service fee (${invoice.serviceFeePercent}%)`} value={fmtThb(invoice.serviceFeeThb)} />
-              <MoneyRow label="Rate (locked)" value={`1 THB = ${invoice.rate} MMK`} />
-            </div>
-            <div className="flex items-baseline justify-between border-t border-dashed border-slate-300 pt-2.5">
-              <span className="text-[15px] font-semibold">Total due</span>
-              <span className="text-xl font-bold tabular-nums">{fmtMmk(invoice.mmkTotal)}</span>
-            </div>
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">No product invoice yet.</p>
-        )}
-      </section>
+          }
+        />
+      ) : (
+        <p className="text-sm text-muted-foreground">No product invoice yet.</p>
+      )}
 
       <section className="flex flex-col gap-3 rounded-[14px] border border-border bg-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -557,15 +547,6 @@ function InvoicePanels({ order }: { order: Order }) {
           <p className="text-[13px] text-muted-foreground">Cargo issues this after the shipment arrives at the warehouse.</p>
         )}
       </section>
-    </div>
-  );
-}
-
-function MoneyRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-3">
-      <span>{label}</span>
-      <span className="tabular-nums">{value}</span>
     </div>
   );
 }

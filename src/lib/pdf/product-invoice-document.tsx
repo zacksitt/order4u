@@ -85,27 +85,24 @@ export function ProductInvoicePdfDocument({
 
         <View style={styles.totals}>
           <View style={styles.totalRow}>
-            <Text>Subtotal (goods)</Text>
-            <Text>{fmtThb(snapshot.thbSubtotal)}</Text>
-          </View>
-          <View style={styles.totalRow}>
-            <Text>Thai shipping</Text>
-            <Text>{fmtThb(snapshot.thbShipping)}</Text>
-          </View>
-          <View style={styles.totalRow}>
-            <Text>THB total</Text>
+            <Text>Subtotal (THB)</Text>
             <Text>{fmtThb(thbTotal)}</Text>
           </View>
-          {feePercent > 0 && (
+          {feePercent > 0 ? (
             <View style={styles.totalRow}>
-              <Text>Service fee ({feePercent}%)</Text>
+              <Text>Service fee ({feePercent}%) (THB)</Text>
               <Text>
                 {fmtThb(snapshot.serviceFeeThb)} / {fmtMmk(snapshot.serviceFeeMmk)}
               </Text>
             </View>
+          ) : (
+            <View style={styles.totalRow}>
+              <Text>Service fee (MMK)</Text>
+              <Text>{fmtMmk(snapshot.serviceFeeMmk)}</Text>
+            </View>
           )}
           <View style={styles.totalRow}>
-            <Text>FX rate (locked)</Text>
+            <Text>Rate locked</Text>
             <Text>1 THB = {snapshot.rate} MMK</Text>
           </View>
           <View style={[styles.totalRow, styles.totalBold]}>
