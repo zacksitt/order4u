@@ -165,7 +165,16 @@ export const zPaymentInstructions = preprocessString(
   z.string().max(MAX_INSTRUCTIONS, "Payment instructions are too long (max 2,000 characters)."),
 );
 
-export const zUuid = z.uuid("Invalid id.");
+const UUID_OR_CUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|^c[a-z0-9]{8,31}$/i;
+
+/** Prisma `@default(uuid())` plus older cuid() ids still on production rows. */
+export const zUuid = z
+  .string()
+  .trim()
+  .min(1, "Invalid id.")
+  .max(64, "Invalid id.")
+  .regex(UUID_OR_CUID, "Invalid id.");
 
 export const zCatalogQuery = preprocessString(
   sanitizePlainText,
@@ -178,7 +187,10 @@ export const orderLineInputSchema = z.object({
   qty: zQty,
   price: zThbPositive,
   shippingFeeThb: zThbNonNeg.optional(),
-  catalogItemId: zUuid.optional(),
+  catalogItemId: z.preprocess(
+    (value) => (value === "" || value === null ? undefined : value),
+    zUuid.optional(),
+  ),
   shopeeShopId: z.string().min(1).max(40).optional(),
   shopeeItemId: z.string().min(1).max(40).optional(),
 });
