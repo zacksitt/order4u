@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 
 import { CatalogItemBadge, ItemSearchCombobox } from "@/components/order4u/item-search-combobox";
 import { ProductInvoiceEditor } from "@/components/order4u/product-invoice-editor";
@@ -13,10 +13,20 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import type { TenantSettings } from "@/lib/agent-settings";
 import { fmtThb } from "@/lib/format-money";
+import {
+  MAX_ITEM_TITLE,
+  MAX_NAME,
+  MAX_QTY,
+  MAX_URL,
+  agentCreateOrderSchema,
+  customerCreateOrderSchema,
+  firstIssueMessage,
+} from "@/lib/input-rules";
 import { isLazadaShortUrl } from "@/lib/lazada";
 import { isShopeeShortUrl } from "@/lib/shopee";
 import type { CatalogItem } from "@/lib/types";
 import { createOrder } from "@/server/actions/agent-orders";
+import { createCustomerOrder } from "@/server/actions/customer-orders";
 import { lookupProductUrl } from "@/server/actions/shopee";
 
 type DraftLine = {
@@ -34,19 +44,25 @@ const DEFAULT_LINE: DraftLine = { title: "", url: "", qty: 1, price: 0, shipping
 
 type NewOrderFormProps = {
   tenantDefaults: TenantSettings;
+  /** Customer login can create an order but cannot change the shop fee. */
+  mode?: "agent" | "customer";
+  initialCustomer?: { name: string; phone: string };
 };
 
-export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
+export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }: NewOrderFormProps) {
   const router = useRouter();
+  const isCustomer = mode === "customer";
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerName, setCustomerName] = useState(initialCustomer?.name ?? "");
+  const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone ?? "");
   const [feePercent, setFeePercent] = useState(tenantDefaults.defaultServiceFeePercent);
   const [lines, setLines] = useState<DraftLine[]>([{ ...DEFAULT_LINE }]);
   const [fetchingIndex, setFetchingIndex] = useState<number | null>(null);
   const [lineErrors, setLineErrors] = useState<Record<number, string>>({});
   const [lineNotes, setLineNotes] = useState<Record<number, string>>({});
+  const linesRef = useRef(lines);
+  linesRef.current = lines;
 
   const quotedSubtotal = useMemo(
     () => lines.reduce((s, l) => s + (l.price || 0) * (l.qty || 0), 0),
@@ -56,6 +72,12 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
 
   function addLine() {
     setLines((prev) => [...prev, { ...DEFAULT_LINE }]);
+  }
+
+  function removeLine(index: number) {
+    setLines((prev) => prev.filter((_, i) => i !== index));
+    setLineErrors({});
+    setLineNotes({});
   }
 
   function updateLine(index: number, patch: Partial<DraftLine>) {
@@ -78,7 +100,7 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
   }
 
   async function fetchListing(index: number) {
-    const url = lines[index]?.url.trim() ?? "";
+    const url = linesRef.current[index]?.url.trim() ?? "";
     setLineErrors((prev) => ({ ...prev, [index]: "" }));
     setLineNotes((prev) => ({ ...prev, [index]: "" }));
     setFetchingIndex(index);
@@ -88,7 +110,7 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
       setLineErrors((prev) => ({ ...prev, [index]: result.error }));
       return;
     }
-    const currentUrl = lines[index]?.url ?? "";
+    const currentUrl = linesRef.current[index]?.url ?? "";
     const replaceUrl =
       (isShopeeShortUrl(currentUrl) || isLazadaShortUrl(currentUrl)) && result.canonicalUrl
         ? result.canonicalUrl
@@ -113,34 +135,60 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
 
   function submit() {
     setError(null);
-    const validLines = lines.filter((l) => l.title.trim() && l.url.trim() && l.price >= 0);
-    if (!customerName.trim()) {
-      setError("Customer name is required.");
+    const filledLines = lines.filter((l) => l.title.trim() || l.url.trim() || l.price > 0);
+    if (filledLines.length === 0) {
+      setError("Add at least one item with a product URL, name, and price.");
       return;
     }
-    if (validLines.length === 0) {
-      setError("Add at least one line with name, URL, and price.");
+
+    const payloadLines = filledLines.map((l) => ({
+      title: l.title,
+      url: l.url,
+      qty: l.qty,
+      price: l.price,
+      shippingFeeThb: isCustomer ? 0 : l.shippingFee || 0,
+      ...(l.catalogItemId ? { catalogItemId: l.catalogItemId } : {}),
+      ...(l.shopeeShopId && l.shopeeItemId
+        ? { shopeeShopId: l.shopeeShopId, shopeeItemId: l.shopeeItemId }
+        : {}),
+    }));
+
+    if (isCustomer) {
+      const checked = customerCreateOrderSchema.safeParse({
+        customerName,
+        customerPhone,
+        lines: payloadLines,
+      });
+      if (!checked.success) {
+        setError(firstIssueMessage(checked.error, "Check the form and try again."));
+        return;
+      }
+      startTransition(async () => {
+        const result = await createCustomerOrder(checked.data);
+        if (!result.ok) {
+          setError(result.error);
+          return;
+        }
+        router.push(`/customer/orders/${result.orderId}`);
+        router.refresh();
+      });
+      return;
+    }
+
+    const checked = agentCreateOrderSchema.safeParse({
+      customerName,
+      customerPhone,
+      thbShipping: shippingTotal,
+      serviceFeePercent: feePercent,
+      lines: payloadLines,
+    });
+    if (!checked.success) {
+      setError(firstIssueMessage(checked.error, "Check the form and try again."));
       return;
     }
 
     startTransition(async () => {
-      const result = await createOrder({
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        thbShipping: shippingTotal,
-        serviceFeePercent: feePercent,
-        lines: validLines.map((l) => ({
-          title: l.title.trim(),
-          url: l.url.trim(),
-          qty: l.qty || 1,
-          price: l.price,
-          shippingFeeThb: l.shippingFee || 0,
-          catalogItemId: l.catalogItemId,
-          ...(l.shopeeShopId && l.shopeeItemId
-            ? { shopeeShopId: l.shopeeShopId, shopeeItemId: l.shopeeItemId }
-            : {}),
-        })),
-      });
+      const result = await createOrder(checked.data);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -154,27 +202,32 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Customer</CardTitle>
+          <CardTitle className="text-base">{isCustomer ? "Your details" : "Customer"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <FieldLabel htmlFor="name">
-              Name <span className="text-red-500">*</span>
+            <FieldLabel htmlFor="name" required>
+              Name
             </FieldLabel>
-            <Input 
-            id="name" 
-            value={customerName} 
-            onChange={(e) => setCustomerName(e.target.value)} 
-            placeholder="Type name"
+            <Input
+              id="name"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="e.g. Ma Thida"
+              autoComplete="name"
+              maxLength={MAX_NAME}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone number</Label>
+            <Label htmlFor="phone">Phone (optional)</Label>
             <Input
               id="phone"
+              type="tel"
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="Type phone number"
+              placeholder="e.g. 09 123 456 789"
+              autoComplete="tel"
+              maxLength={20}
             />
           </div>
         </CardContent>
@@ -186,16 +239,27 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-base">Item {i + 1}</CardTitle>
-                <CatalogItemBadge catalogItemId={line.catalogItemId} />
+                <div className="flex items-center gap-2">
+                  {!isCustomer && <CatalogItemBadge catalogItemId={line.catalogItemId} />}
+                  {lines.length > 1 && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => removeLine(i)}>
+                      Remove
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-2">
-                <FieldLabel>Product URL <span className="text-red-500">*</span></FieldLabel>
+                <FieldLabel htmlFor={`url-${i}`} required>
+                  Product URL (Shopee / Lazada)
+                </FieldLabel>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Input
+                    id={`url-${i}`}
                     value={line.url}
-                    placeholder="Type URL from Shopee or Lazada"
+                    placeholder="https://shopee.co.th/…"
+                    maxLength={MAX_URL}
                     onChange={(e) => {
                       updateLine(i, {
                         url: e.target.value,
@@ -214,51 +278,81 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
                     disabled={fetchingIndex === i || !line.url.trim()}
                     onClick={() => fetchListing(i)}
                   >
-                    {fetchingIndex === i ? "Fetching…" : "Fetch info"}
+                    {fetchingIndex === i ? "Getting details…" : "Get name & price"}
                   </Button>
                 </div>
                 {lineErrors[i] ? <p className="text-sm text-destructive">{lineErrors[i]}</p> : null}
                 {lineNotes[i] ? <p className="text-sm text-muted-foreground">{lineNotes[i]}</p> : null}
               </div>
-              <ItemSearchCombobox
-                value={line.title}
-                onChange={(title) => updateLine(i, { title, catalogItemId: undefined })}
-                onSelect={(item) => applyCatalogItem(i, item)}
-                required
-              />
-              <div className="grid grid-cols-3 gap-3">
+              {isCustomer ? (
                 <div className="space-y-2">
-                  <Label>Qty <span className="text-red-500">*</span></Label>
+                  <FieldLabel htmlFor={`title-${i}`} required>
+                    Item name
+                  </FieldLabel>
                   <Input
+                    id={`title-${i}`}
+                    value={line.title}
+                    placeholder="e.g. Cotton T-shirt, size M"
+                    onChange={(e) => updateLine(i, { title: e.target.value })}
+                    maxLength={MAX_ITEM_TITLE}
+                  />
+                </div>
+              ) : (
+                <ItemSearchCombobox
+                  value={line.title}
+                  onChange={(title) => updateLine(i, { title, catalogItemId: undefined })}
+                  onSelect={(item) => applyCatalogItem(i, item)}
+                  required
+                />
+              )}
+              <div className={isCustomer ? "grid grid-cols-2 gap-3" : "grid grid-cols-3 gap-3"}>
+                <div className="space-y-2">
+                  <FieldLabel htmlFor={`qty-${i}`} required>
+                    Qty
+                  </FieldLabel>
+                  <Input
+                    id={`qty-${i}`}
                     type="number"
                     min={1}
+                    max={MAX_QTY}
                     value={line.qty}
                     onChange={(e) => updateLine(i, { qty: Number(e.target.value) || 1 })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <FieldLabel>Price (THB) <span className="text-red-500">*</span></FieldLabel>
+                  <FieldLabel htmlFor={`price-${i}`} required>
+                    Price (THB)
+                  </FieldLabel>
                   <Input
+                    id={`price-${i}`}
                     type="number"
-                    min={0}
+                    min={0.01}
                     step="0.01"
                     value={line.price || ""}
                     onChange={(e) => updateLine(i, { price: Number(e.target.value) || 0 })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Shipping (THB)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={line.shippingFee || ""}
-                    onChange={(e) => updateLine(i, { shippingFee: Number(e.target.value) || 0 })}
-                  />
-                </div>
+                {!isCustomer && (
+                  <div className="space-y-2">
+                    <Label htmlFor={`ship-${i}`}>Thai shipping (THB)</Label>
+                    <Input
+                      id={`ship-${i}`}
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={line.shippingFee || ""}
+                      onChange={(e) => updateLine(i, { shippingFee: Number(e.target.value) || 0 })}
+                    />
+                  </div>
+                )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Line total: {fmtThb((line.price || 0) * (line.qty || 0))} · shipping {fmtThb(line.shippingFee || 0)}
+                {(() => {
+                  const items = (line.price || 0) * (line.qty || 0);
+                  const shipping = line.shippingFee || 0;
+                  if (isCustomer) return `Item total: ${fmtThb(items)}`;
+                  return `Items ${fmtThb(items)} + shipping ${fmtThb(shipping)} = ${fmtThb(items + shipping)}`;
+                })()}
               </p>
             </CardContent>
           </Card>
@@ -276,22 +370,39 @@ export function NewOrderForm({ tenantDefaults }: NewOrderFormProps) {
         thbShipping={shippingTotal}
         shippingReadOnly
         feePercent={feePercent}
-        onFeePercentChange={setFeePercent}
+        onFeePercentChange={isCustomer ? undefined : setFeePercent}
+        feeReadOnly={isCustomer}
         rate={tenantDefaults.thbMmkRate}
         initialFeePercent={tenantDefaults.defaultServiceFeePercent}
-        title="Product invoice preview"
+        title={isCustomer ? "Estimated total" : "Product invoice preview"}
         lines={lines
           .filter((l) => l.title.trim())
-          .map((l) => ({ title: l.title.trim(), qty: l.qty || 1, price: l.price || 0 }))}
+          .map((l) => ({
+            title: l.title.trim(),
+            qty: l.qty || 1,
+            price: l.price || 0,
+            shippingFeeThb: isCustomer ? 0 : l.shippingFee || 0,
+          }))}
       />
+
+      {isCustomer && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Thai shipping is added by the shop after they check your items. Your final invoice may change slightly.
+        </p>
+      )}
 
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Button type="button" className="flex-1" size="lg" onClick={submit} disabled={pending}>
-          {pending ? "Saving…" : "Save & create invoice"}
+          {pending ? (isCustomer ? "Placing order…" : "Creating…") : isCustomer ? "Place order" : "Create order"}
         </Button>
-        <Button type="button" variant="ghost" className="flex-1" onClick={() => router.push("/agent/orders")}>
+        <Button
+          type="button"
+          variant="ghost"
+          className="flex-1"
+          onClick={() => router.push(isCustomer ? "/customer/orders" : "/agent/orders")}
+        >
           Cancel
         </Button>
       </div>

@@ -30,14 +30,14 @@ export default async function AgentReportsPage() {
     <>
       <PageHeader
         title="Reports"
-        description=""
+        description="Revenue from paid orders and your margin on each item."
       />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Product revenue (MMK)</CardTitle>
-            <CardDescription>Orders with product invoice marked paid</CardDescription>
+            <CardDescription>Product invoices you marked paid</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold tabular-nums">
@@ -48,12 +48,12 @@ export default async function AgentReportsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Orders</CardTitle>
-            <CardDescription>Total in your list</CardDescription>
+            <CardDescription>All orders assigned to you</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold tabular-nums">{orders.length}</p>
             <Button asChild variant="ghost" className="px-0 mt-2 h-auto">
-              <Link href="/agent/orders">Go to orders</Link>
+              <Link href="/agent/orders">View orders →</Link>
             </Button>
           </CardContent>
         </Card>
@@ -62,14 +62,14 @@ export default async function AgentReportsPage() {
       <Card className="mt-6">
         <CardHeader>
           <CardTitle className="text-base">Margin</CardTitle>
-          {/* <CardDescription>
-            Lines where actual pay is recorded — agent-only; CSV export can be added next.
-          </CardDescription> */}
+          <CardDescription>
+            Quoted price minus what you paid, times qty. Only you can see this.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {withMargin.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center">
-              No lines with actual pay yet. Update item statuses on order detail after buying.
+              No margin yet. Enter the THB you paid when you mark an item bought.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -79,7 +79,7 @@ export default async function AgentReportsPage() {
                     <th className="pb-2 pr-4">Order</th>
                     <th className="pb-2 pr-4">Item</th>
                     <th className="pb-2 pr-4 text-right">Quoted</th>
-                    <th className="pb-2 pr-4 text-right">Actual</th>
+                    <th className="pb-2 pr-4 text-right">Paid</th>
                     <th className="pb-2 text-right">Margin</th>
                   </tr>
                 </thead>

@@ -10,12 +10,12 @@ export default async function AgentSettingsPage() {
     <>
       <PageHeader
         title="Settings"
-        description="Default FX and agent fee % lock onto each invoice; you can still edit fee on the order before sending."
+        description="Shop details and defaults for new orders."
       />
 
       <Card>
         {/* <CardHeader>
-          <CardTitle className="text-base">FX & agent fee</CardTitle>
+          <CardTitle className="text-base">FX & service fee</CardTitle>
           <CardDescription>
             Fee is calculated as a percent of THB total (items + TH shipping), then converted to MMK at the locked
             rate.

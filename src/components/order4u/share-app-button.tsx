@@ -21,7 +21,7 @@ export function ShareAppButton({
       : `${window.location.origin}${url.startsWith("/") ? url : `/${url}`}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: "Order4U", url: href });
+        await navigator.share({ title: "Order4U sign in", url: href });
         return;
       }
     } catch (err) {
@@ -46,7 +46,7 @@ export function ShareAppButton({
         )}
       >
         <Share2 className="h-4 w-4" />
-        Share app
+        Share login link
       </button>
       {note && <span className="px-3 text-xs text-muted-foreground">{note}</span>}
     </span>

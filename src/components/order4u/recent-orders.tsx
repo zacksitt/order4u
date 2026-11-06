@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 const FILTERS = [
   { key: "all", label: "All" },
-  { key: "awaiting", label: "Awaiting pay" },
+  { key: "awaiting", label: "Awaiting payment" },
   { key: "buying", label: "Buying" },
   { key: "cargo", label: "At cargo" },
   { key: "shipping", label: "Shipping" },

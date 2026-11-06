@@ -23,11 +23,11 @@ export default async function MyOrdersPage({ searchParams }: PageProps) {
         {customer.tenant.name}
       </p>
       <h1 className="mt-2 text-center text-2xl font-bold">My orders</h1>
-      <p className="text-center text-sm text-muted-foreground mt-1">Private link — do not share.</p>
+      <p className="text-center text-sm text-muted-foreground mt-1">Only people with this link can see your orders.</p>
 
       <div className="mt-6 space-y-3">
         {orders.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground py-8">No orders yet. Place one from Messenger.</p>
+          <p className="text-center text-sm text-muted-foreground py-8">No orders yet. Send your order to the shop in Messenger.</p>
         ) : (
           orders.map((order) => {
             const summary = orderSummaryLabel(
@@ -48,7 +48,7 @@ export default async function MyOrdersPage({ searchParams }: PageProps) {
                     href={`/o/${order.publicToken}`}
                     className="text-sm font-medium text-primary shrink-0"
                   >
-                    View →
+                    View order
                   </Link>
                 </CardContent>
               </Card>

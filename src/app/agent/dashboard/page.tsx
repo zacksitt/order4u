@@ -22,12 +22,12 @@ export default async function AgentDashboardPage() {
       <PageHeader
         className="sm:items-end"
         title="Dashboard"
-        description=""
+        description="What needs your attention today."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <p className="flex min-h-11 items-center gap-2 rounded-[10px] border border-border bg-card px-3.5 text-[13px]">
               <span className="font-semibold text-foreground">1 THB = {tenant.thbMmkRate} MMK</span>
-              <span className="text-muted-foreground">· fee {tenant.defaultServiceFeePercent}%</span>
+              <span className="text-muted-foreground">· service fee {tenant.defaultServiceFeePercent}%</span>
             </p>
             <Button asChild className="rounded-[10px] px-[18px] font-semibold">
               <Link href="/agent/orders/new">New order</Link>
@@ -45,21 +45,21 @@ export default async function AgentDashboardPage() {
           dotClassName="bg-[#0D9488]"
         />
         <StatCard
-          label="Awaiting product pay"
+          label="Awaiting payment"
           value={dashboard.stats.awaitingProductPay}
-          hint="Tracking link locked until paid"
+          hint="Customer sees tracking after you confirm"
           dotClassName="bg-[#D97706]"
         />
         <StatCard
           label="At cargo"
           value={dashboard.stats.atCargo}
-          hint="Handed to cargo → invoiced"
+          hint="With cargo, before shipping"
           dotClassName="bg-[#2563EB]"
         />
         <StatCard
-          label="Delivered"
+          label="Delivered this month"
           value={dashboard.stats.deliveredThisMonth}
-          hint="This month"
+          hint="Completed orders"
           dotClassName="bg-[#059669]"
         />
       </div>
@@ -76,7 +76,7 @@ export default async function AgentDashboardPage() {
               dashboard.actions.map((action) => (
                 <Link
                   key={action.key}
-                  href="/agent/orders"
+                  href={action.href}
                   className="flex min-h-12 items-center gap-3 rounded-lg bg-muted/60 px-3 py-2"
                 >
                   <span

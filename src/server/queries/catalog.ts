@@ -1,3 +1,4 @@
+import { MAX_SEARCH, zCatalogQuery } from "@/lib/input-rules";
 import type { CatalogItem } from "@/lib/types";
 import { requireAgent } from "@/server/auth/session";
 import { prisma } from "@/server/db";
@@ -20,7 +21,7 @@ function mapCatalogItem(row: {
 
 export async function searchCatalogItems(query: string): Promise<CatalogItem[]> {
   const session = await requireAgent();
-  const q = query.trim();
+  const q = zCatalogQuery.safeParse(typeof query === "string" ? query.slice(0, MAX_SEARCH) : "").data ?? "";
   const rows = await prisma.catalogItem.findMany({
     where: {
       tenantId: session.tenantId,

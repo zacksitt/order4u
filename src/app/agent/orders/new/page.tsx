@@ -9,7 +9,7 @@ export default async function NewOrderPage() {
     <>
       <PageHeader
         title="New order"
-        description="Please filed the required fields with *"
+        description="Fill in the fields marked (required). The invoice is created with the order."
       />
       <NewOrderForm tenantDefaults={tenantDefaults} />
     </>

@@ -1,22 +1,11 @@
-import { z } from "zod";
-
+import { orderLineInputSchema, type OrderLineInput } from "@/lib/input-rules";
 import { marketplaceFromLine } from "@/lib/marketplace";
 import { generateOrderCode, generatePublicAccessToken } from "@/lib/order-code";
 import { prisma } from "@/server/db";
 import { buildProductInvoiceSnapshot, productInvoiceToDb } from "@/server/services/invoices";
 
-export const orderLineSchema = z.object({
-  title: z.string().min(1),
-  url: z.string().min(8),
-  qty: z.number().int().min(1),
-  price: z.number().min(0),
-  shippingFeeThb: z.number().min(0).optional(),
-  catalogItemId: z.string().optional(),
-  shopeeShopId: z.string().min(1).optional(),
-  shopeeItemId: z.string().min(1).optional(),
-});
-
-export type OrderLineInput = z.infer<typeof orderLineSchema>;
+export const orderLineSchema = orderLineInputSchema;
+export type { OrderLineInput };
 
 export async function resolveDefaultAgentId(tenantId: string): Promise<string | null> {
   const tenant = await prisma.tenant.findUnique({
@@ -36,6 +25,7 @@ export async function createOrderForTenant(input: {
   tenantId: string;
   assignedAgentId: string;
   customerId: string;
+  createdByUserId?: string;
   thbShipping: number;
   serviceFeePercent: number;
   lines: OrderLineInput[];
@@ -61,6 +51,14 @@ export async function createOrderForTenant(input: {
       lineCatalogIds.push(line.catalogItemId);
       continue;
     }
+    const existing = await prisma.catalogItem.findFirst({
+      where: { tenantId: input.tenantId, sourceUrl: line.url },
+      select: { id: true },
+    });
+    if (existing) {
+      lineCatalogIds.push(existing.id);
+      continue;
+    }
     const catalogRow = await prisma.catalogItem.create({
       data: {
         tenantId: input.tenantId,
@@ -77,6 +75,7 @@ export async function createOrderForTenant(input: {
       tenantId: input.tenantId,
       assignedAgentId: input.assignedAgentId,
       customerId: input.customerId,
+      createdByUserId: input.createdByUserId,
       code: generateOrderCode(),
       publicAccessToken: generatePublicAccessToken(),
       items: {

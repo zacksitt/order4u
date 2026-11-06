@@ -45,17 +45,16 @@ export function buildCustomerTimeline(order: TimelineOrder): TimelineStep[] {
       id: "product_paid",
       title: "Product payment confirmed",
       description: "Your agent can start buying items in Thailand.",
-      timeLabel: "Nov 24 · 7:42 PM",
     },
     {
       id: "buying",
-      title: "Agent Buying",
+      title: "Buying",
       description: "Each item is updated until everything reaches the agent warehouse.",
       timeLabel: allAtAgent ? "Completed" : "In progress",
     },
     {
       id: "at_agent",
-      title: "All items at agent",
+      title: "All items arrived",
       description: "Items are ready to hand to cargo in one shipment.",
     },
     {
@@ -65,8 +64,8 @@ export function buildCustomerTimeline(order: TimelineOrder): TimelineStep[] {
     },
     {
       id: "cargo_check",
-      title: "Cargo received & checked",
-      description: "Warehouse verifies contents before cargo invoice.",
+      title: "Cargo received",
+      description: "Your order arrived at the cargo warehouse.",
     },
     {
       id: "cargo_invoice",

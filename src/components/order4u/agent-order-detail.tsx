@@ -5,15 +5,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { CargoInvoiceBreakdown } from "@/components/order4u/cargo-invoice-card";
 import { CopyLineButton } from "@/components/order4u/copy-line-button";
+import { InvoiceLineItems } from "@/components/order4u/invoice-line-items";
 import { OrderProgress } from "@/components/order4u/order-progress";
 import { PdfDownloadButton, PdfShareButton } from "@/components/order4u/pdf-download-button";
 import { StatusPill } from "@/components/order4u/status-pill";
 import { Button } from "@/components/ui/button";
-import { fmtCargoFee, fmtThb } from "@/lib/format-money";
-import { productInvoicePdfUrl } from "@/lib/invoice-display";
+import { fmtThb } from "@/lib/format-money";
+import { orderItemsToInvoiceLines, productInvoicePdfUrl } from "@/lib/invoice-display";
 import { allItemsArrived, canHandOrderToCargo, isHandedToCargo } from "@/lib/order-rules";
 import { isProductPaid } from "@/lib/payment-status";
+import { ITEM_STATUS_CLASS, ITEM_STATUS_LABEL } from "@/lib/status-labels";
 import type { CargoStaffUser, ItemStatus, Order } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -24,17 +27,9 @@ import {
 } from "@/server/actions/agent-orders";
 
 const NEXT_STATUS: Partial<Record<ItemStatus, { status: ItemStatus; label: string }>> = {
-  pending_purchase: { status: "purchased", label: "Mark bought" },
-  purchased: { status: "seller_shipped", label: "Mark shipped" },
-  seller_shipped: { status: "arrived_at_agent", label: "Mark arrived" },
-};
-
-const ITEM_PILL: Record<ItemStatus, { label: string; className: string }> = {
-  pending_purchase: { label: "To buy", className: "bg-slate-100 text-slate-600" },
-  purchased: { label: "Purchased", className: "bg-cyan-100 text-teal-800" },
-  seller_shipped: { label: "Shipped", className: "bg-cyan-100 text-teal-800" },
-  arrived_at_agent: { label: "At agent", className: "bg-emerald-100 text-emerald-900" },
-  cancelled: { label: "Cancelled", className: "bg-slate-100 text-slate-600" },
+  pending_purchase: { status: "purchased", label: "Bought" },
+  purchased: { status: "seller_shipped", label: "Seller sent" },
+  seller_shipped: { status: "arrived_at_agent", label: "Arrived" },
 };
 
 type AgentOrderDetailProps = {
@@ -92,7 +87,7 @@ export function AgentOrderDetail({ order, cargoUsers, trackUrl }: AgentOrderDeta
         className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold text-teal-800"
       >
         <ArrowLeft className="h-[18px] w-[18px]" />
-        My orders
+        Orders
       </Link>
 
       <header className="flex flex-wrap items-center justify-between gap-4">
@@ -116,13 +111,11 @@ export function AgentOrderDetail({ order, cargoUsers, trackUrl }: AgentOrderDeta
               <p className="text-[22px] font-bold tabular-nums">{fmtMmk(order.productInvoice.mmkTotal)}</p>
             </div>
           )}
-          {paid && (
-            <CopyLineButton
-              text={trackUrl}
-              label="Copy customer link"
-              className="h-11 w-auto min-h-11 rounded-[10px] px-4"
-            />
-          )}
+          <CopyLineButton
+            text={trackUrl}
+            label="Copy link"
+            className="h-11 w-auto min-h-11 rounded-[10px] px-4"
+          />
         </div>
       </header>
 
@@ -157,40 +150,43 @@ export function AgentOrderDetail({ order, cargoUsers, trackUrl }: AgentOrderDeta
               onClick={markPaid}
               disabled={pending}
             >
-              Mark product paid
+              Customer paid
             </Button>
           )}
-          {next.kind === "hand" && (
-            <>
-              <label className="sr-only" htmlFor="cargo-assignee">
-                Cargo staff
-              </label>
-              <select
-                id="cargo-assignee"
-                className="h-12 rounded-xl border border-input bg-white px-3 text-sm"
-                value={cargoUserId}
-                onChange={(event) => setCargoUserId(event.target.value)}
-                disabled={pending || cargoUsers.length === 0}
-              >
-                {cargoUsers.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.displayName}
-                  </option>
-                ))}
-              </select>
-              <Button
-                className="h-12 min-h-12 rounded-xl px-[22px] text-[15px] font-semibold"
-                onClick={handOff}
-                disabled={pending || cargoUsers.length === 0}
-              >
-                Hand to cargo
-              </Button>
-            </>
-          )}
+          {next.kind === "hand" &&
+            (cargoUsers.length === 0 ? (
+              <p className="text-sm text-amber-900">No cargo staff in this shop yet. Ask the shop owner to add one.</p>
+            ) : (
+              <div className="flex flex-wrap items-end gap-2">
+                <label className="flex flex-col gap-1 text-[13px] font-semibold text-slate-700" htmlFor="cargo-assignee">
+                  Cargo staff
+                  <select
+                    id="cargo-assignee"
+                    className="h-12 rounded-xl border border-input bg-white px-3 text-sm font-medium"
+                    value={cargoUserId}
+                    onChange={(event) => setCargoUserId(event.target.value)}
+                    disabled={pending}
+                  >
+                    {cargoUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.displayName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Button
+                  className="h-12 min-h-12 rounded-xl px-[22px] text-[15px] font-semibold"
+                  onClick={handOff}
+                  disabled={pending}
+                >
+                  Give to cargo
+                </Button>
+              </div>
+            ))}
           {next.kind === "copy" && (
             <CopyLineButton
               text={trackUrl}
-              label="Copy customer link"
+              label="Copy link"
               className="h-12 w-auto min-h-12 rounded-xl border-0 bg-primary px-[22px] text-[15px] font-semibold text-primary-foreground hover:bg-primary/90"
             />
           )}
@@ -240,24 +236,24 @@ function nextStep(order: Order, atAgent: number, cargoName: string | undefined) 
     return {
       kind: "pay" as const,
       tone: "warn" as const,
-      title: "Confirm product payment",
-      hint: "Tap when the customer’s transfer arrives.",
+      title: "Customer paid",
+      hint: "Send the link so they can pay. Tap Customer paid when their transfer arrives.",
     };
   }
   if (!allItemsArrived(order.items)) {
     return {
       kind: "none" as const,
       tone: "teal" as const,
-      title: `Buy items · ${atAgent} of ${order.items.length} at agent`,
-      hint: "Tap the button on each item below as it moves along.",
+      title: `Buy items · ${atAgent} of ${order.items.length} arrived`,
+      hint: "Update each item below: enter what you paid, then tap Bought, Seller sent, and Arrived.",
     };
   }
   if (!handed && canHandOrderToCargo(order)) {
     return {
       kind: "hand" as const,
       tone: "teal" as const,
-      title: "Hand order to cargo",
-      hint: "All items are with you. Pick cargo staff and hand over.",
+      title: "Give to cargo",
+      hint: "All items have arrived. Choose cargo staff and give them the order.",
     };
   }
   if (order.fulfillment === "cargo_invoiced" && order.cargoPaymentStatus === "awaiting") {
@@ -273,14 +269,30 @@ function nextStep(order: Order, atAgent: number, cargoName: string | undefined) 
       kind: "none" as const,
       tone: "calm" as const,
       title: "Nothing to do",
-      hint: "Shipping to Myanmar. Cargo will mark it delivered.",
+      hint: "Shipping to Myanmar. Cargo will tap Delivered when the customer has it.",
+    };
+  }
+  if (order.fulfillment === "delivered") {
+    return {
+      kind: "none" as const,
+      tone: "calm" as const,
+      title: "Order complete",
+      hint: "This order was delivered.",
+    };
+  }
+  if (order.cargoPaymentStatus === "paid") {
+    return {
+      kind: "none" as const,
+      tone: "calm" as const,
+      title: "Waiting for cargo",
+      hint: `Cargo fee is paid. ${cargoName ?? "Cargo"} will ship the order to Myanmar.`,
     };
   }
   return {
     kind: "none" as const,
     tone: "calm" as const,
     title: "Waiting for cargo",
-    hint: `${cargoName ?? "Cargo"} is checking the order. You’ll get a notification.`,
+    hint: `${cargoName ?? "Cargo"} has the order.`,
   };
 }
 
@@ -310,7 +322,7 @@ function OrderChecklist({
         <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-[18px] py-3.5">
           <h2 className="text-[15px] font-semibold">Items</h2>
           <span className="text-[13px] text-slate-600">
-            {atAgent} of {order.items.length} at agent
+            {atAgent} of {order.items.length} arrived
           </span>
         </div>
         <ul>
@@ -320,7 +332,7 @@ function OrderChecklist({
         </ul>
         {!paid && (
           <p className="bg-amber-50 px-[18px] py-3 text-[13px] text-amber-900">
-            Buying unlocks after product payment.
+            You can update items after you confirm product payment.
           </p>
         )}
       </section>
@@ -351,36 +363,43 @@ function ItemRow({
 }) {
   const router = useRouter();
   const [actualPrice, setActualPrice] = useState(item.actualPrice?.toString() ?? "");
+  const [editingPrice, setEditingPrice] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const advance = NEXT_STATUS[item.status];
-  const pill = ITEM_PILL[item.status];
   const arrived = item.status === "arrived_at_agent";
+  const buying = item.status === "pending_purchase";
+  const showPriceInput = item.status !== "cancelled" && !locked && (buying || editingPrice);
+
+  function parsePrice(): number | undefined | null {
+    if (actualPrice.trim() === "") return undefined;
+    const price = Number(actualPrice);
+    return Number.isFinite(price) && price > 0 ? price : null;
+  }
 
   function savePrice() {
     setError(null);
-    const price = Number(actualPrice);
-    if (actualPrice.trim() === "" || !Number.isFinite(price) || price < 0) {
-      setError("Enter a THB amount.");
+    const price = parsePrice();
+    if (price == null) {
+      setError("Enter the THB amount you paid.");
       return;
     }
     startTransition(async () => {
-      const result = await updateOrderItemActualPrice({
-        orderId,
-        itemId: item.id,
-        actualPrice: price,
-      });
+      const result = await updateOrderItemActualPrice({ orderId, itemId: item.id, actualPrice: price });
       if (!result.ok) setError(result.error);
-      else router.refresh();
+      else {
+        setEditingPrice(false);
+        router.refresh();
+      }
     });
   }
 
   function markNext() {
     if (!advance) return;
     setError(null);
-    const price = actualPrice.trim() === "" ? undefined : Number(actualPrice);
-    if (price !== undefined && !Number.isFinite(price)) {
-      setError("Enter a THB amount.");
+    const price = parsePrice();
+    if (price === null || (buying && price === undefined)) {
+      setError("Enter the THB amount you paid.");
       return;
     }
     startTransition(async () => {
@@ -409,35 +428,56 @@ function ItemRow({
         <p className="text-sm font-semibold">{item.title}</p>
         <p className="mt-0.5 text-[13px] text-muted-foreground">
           {item.qty} × {fmtThb(item.price)}
-          {item.shippingFeeThb ? ` · shipping ${fmtThb(item.shippingFeeThb)}` : ""}
+          {item.shippingFeeThb
+            ? ` + shipping ${fmtThb(item.shippingFeeThb)} = ${fmtThb(item.price * item.qty + item.shippingFeeThb)}`
+            : ""}
           {item.actualPrice !== undefined ? ` · you paid ${fmtThb(item.actualPrice)}` : ""}
+          {!buying && !locked && !editingPrice && item.status !== "cancelled" && (
+            <>
+              {" · "}
+              <button
+                type="button"
+                className="font-semibold text-teal-800 underline-offset-2 hover:underline"
+                onClick={() => setEditingPrice(true)}
+              >
+                {item.actualPrice !== undefined ? "Edit price" : "Add price paid"}
+              </button>
+            </>
+          )}
         </p>
       </div>
-      <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap", pill.className)}>
-        {pill.label}
+      <span
+        className={cn(
+          "inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap",
+          ITEM_STATUS_CLASS[item.status],
+        )}
+      >
+        {ITEM_STATUS_LABEL[item.status]}
       </span>
-      {item.status !== "cancelled" && (
-        <>
+      {showPriceInput && (
+        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
+          Paid (THB)
           <input
-            aria-label={`Amount paid for ${item.title}`}
             inputMode="decimal"
-            placeholder="THB paid"
+            placeholder="0"
             value={actualPrice}
             onChange={(event) => setActualPrice(event.target.value)}
-            disabled={locked || pending}
-            className="h-10 w-24 rounded-[10px] border border-input bg-white px-2 text-[13px] disabled:bg-slate-100"
+            disabled={pending}
+            className="h-10 w-24 rounded-[10px] border border-input bg-white px-2 text-[13px] font-medium"
           />
-          <button
-            type="button"
-            onClick={savePrice}
-            disabled={locked || pending}
-            className="min-h-10 rounded-[10px] border border-slate-300 bg-white px-3 text-[13px] font-semibold whitespace-nowrap disabled:bg-slate-100 disabled:text-slate-500"
-          >
-            Save
-          </button>
-        </>
+        </label>
       )}
-      {advance && (
+      {editingPrice && !buying && (
+        <button
+          type="button"
+          onClick={savePrice}
+          disabled={pending}
+          className="min-h-10 rounded-[10px] border border-slate-300 bg-white px-3 text-[13px] font-semibold whitespace-nowrap"
+        >
+          Save price
+        </button>
+      )}
+      {advance && !editingPrice && (
         <button
           type="button"
           onClick={markNext}
@@ -488,16 +528,11 @@ function InvoicePanels({ order }: { order: Order }) {
         </div>
         {invoice ? (
           <>
-            {order.items.map((item) => (
-              <div key={item.id} className="flex justify-between gap-3 text-sm">
-                <span>
-                  {item.qty}× {item.title}
-                </span>
-                <span className="tabular-nums whitespace-nowrap">{fmtThb(item.price * item.qty)}</span>
-              </div>
-            ))}
+            <InvoiceLineItems lines={orderItemsToInvoiceLines(order.items)} />
             <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-2.5 text-[13px] text-slate-600">
-              <MoneyRow label="Subtotal + Thai shipping" value={fmtThb(invoice.thbSubtotal + invoice.thbShipping)} />
+              <MoneyRow label="Items" value={fmtThb(invoice.thbSubtotal)} />
+              <MoneyRow label="Thai shipping" value={fmtThb(invoice.thbShipping)} />
+              <MoneyRow label="Items + shipping" value={fmtThb(invoice.thbSubtotal + invoice.thbShipping)} />
               <MoneyRow label={`Service fee (${invoice.serviceFeePercent}%)`} value={fmtThb(invoice.serviceFeeThb)} />
               <MoneyRow label="Rate (locked)" value={`1 THB = ${invoice.rate} MMK`} />
             </div>
@@ -511,14 +546,16 @@ function InvoicePanels({ order }: { order: Order }) {
         )}
       </section>
 
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-border bg-card p-5">
-        <div>
+      <section className="flex flex-col gap-3 rounded-[14px] border border-border bg-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-base font-semibold">Cargo invoice</h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            {cargo ? `${cargo.weightKg} kg · ${cargoPay}` : "Appears after the warehouse check."}
-          </p>
+          {cargo && <span className="text-[13px] font-semibold text-slate-600">{cargoPay}</span>}
         </div>
-        {cargo && <p className="text-xl font-bold tabular-nums">{fmtCargoFee(cargo)}</p>}
+        {cargo ? (
+          <CargoInvoiceBreakdown invoice={cargo} />
+        ) : (
+          <p className="text-[13px] text-muted-foreground">Cargo issues this after the shipment arrives at the warehouse.</p>
+        )}
       </section>
     </div>
   );

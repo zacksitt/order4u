@@ -47,7 +47,10 @@ export async function getCargoInvoicePdfDataByToken(
     shopName: row.tenant.name,
     orderCode: order.code,
     lines: orderItemsToInvoiceLines(order.items),
+    categoryLines: order.cargoInvoice.lines,
     weightKg: order.cargoInvoice.weightKg,
+    subtotalThb: order.cargoInvoice.subtotalThb ?? null,
+    discountThb: order.cargoInvoice.discountThb,
     thbTotalDue: order.cargoInvoice.thbTotal ?? null,
     mmkTotalDue: order.cargoInvoice.mmkTotal,
   };

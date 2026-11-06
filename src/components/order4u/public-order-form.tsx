@@ -11,6 +11,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { fmtThb } from "@/lib/format-money";
+import {
+  MAX_ITEM_TITLE,
+  MAX_NAME,
+  MAX_QTY,
+  MAX_URL,
+  firstIssueMessage,
+  publicCreateOrderSchema,
+} from "@/lib/input-rules";
 import { submitPublicOrder } from "@/server/actions/public-orders";
 
 type DraftLine = {
@@ -63,29 +71,30 @@ export function PublicOrderForm({
 
   function submit() {
     setError(null);
-    const validLines = lines.filter((l) => l.title.trim() && l.url.trim().length >= 8 && l.price >= 0);
-    if (!customerName.trim()) {
-      setError("Name is required.");
+    const filledLines = lines.filter((l) => l.title.trim() || l.url.trim() || l.price > 0);
+    if (filledLines.length === 0) {
+      setError("Add at least one item with a product URL, name, and price.");
       return;
     }
-    if (validLines.length === 0) {
-      setError("Add at least one item with name, product URL, and price (THB).");
+    const checked = publicCreateOrderSchema.safeParse({
+      shopSlug,
+      portalToken,
+      customerName,
+      customerPhone,
+      lines: filledLines.map((l) => ({
+        title: l.title,
+        url: l.url,
+        qty: l.qty,
+        price: l.price,
+      })),
+    });
+    if (!checked.success) {
+      setError(firstIssueMessage(checked.error, "Check the form and try again."));
       return;
     }
 
     startTransition(async () => {
-      const result = await submitPublicOrder({
-        shopSlug,
-        portalToken,
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        lines: validLines.map((l) => ({
-          title: l.title.trim(),
-          url: l.url.trim(),
-          qty: l.qty || 1,
-          price: l.price,
-        })),
-      });
+      const result = await submitPublicOrder(checked.data);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -106,7 +115,12 @@ export function PublicOrderForm({
             <FieldLabel htmlFor="pub-name" required>
               Name
             </FieldLabel>
-            <Input id="pub-name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+            <Input
+              id="pub-name"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              maxLength={MAX_NAME}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="pub-phone">Phone (optional)</Label>
@@ -115,6 +129,7 @@ export function PublicOrderForm({
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
               placeholder="For delivery updates"
+              maxLength={20}
             />
           </div>
         </CardContent>
@@ -128,23 +143,29 @@ export function PublicOrderForm({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-2">
-                <FieldLabel required>Product URL (Lazada / Shopee)</FieldLabel>
+                <FieldLabel required>Product URL (Shopee / Lazada)</FieldLabel>
                 <Input
                   value={line.url}
                   onChange={(e) => updateLine(i, { url: e.target.value })}
                   placeholder="https://..."
+                  maxLength={MAX_URL}
                 />
               </div>
               <div className="space-y-2">
                 <FieldLabel required>Item name</FieldLabel>
-                <Input value={line.title} onChange={(e) => updateLine(i, { title: e.target.value })} />
+                <Input
+                  value={line.title}
+                  onChange={(e) => updateLine(i, { title: e.target.value })}
+                  maxLength={MAX_ITEM_TITLE}
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Qty</Label>
+                  <FieldLabel required>Qty</FieldLabel>
                   <Input
                     type="number"
                     min={1}
+                    max={MAX_QTY}
                     value={line.qty}
                     onChange={(e) => updateLine(i, { qty: Number(e.target.value) || 1 })}
                   />
@@ -153,7 +174,7 @@ export function PublicOrderForm({
                   <FieldLabel required>Price (THB)</FieldLabel>
                   <Input
                     type="number"
-                    min={0}
+                    min={0.01}
                     step="0.01"
                     value={line.price || ""}
                     onChange={(e) => updateLine(i, { price: Number(e.target.value) || 0 })}
@@ -177,9 +198,12 @@ export function PublicOrderForm({
       <ProductInvoiceEditor
         thbSubtotal={quotedSubtotal}
         thbShipping={0}
+        shippingReadOnly
+        feeReadOnly
+        feePercent={serviceFeePercent}
         rate={thbMmkRate}
         initialFeePercent={serviceFeePercent}
-        title="Estimated total (MMK)"
+        title="Estimated total"
         lines={lines
           .filter((l) => l.title.trim())
           .map((l) => ({ title: l.title.trim(), qty: l.qty || 1, price: l.price || 0 }))}
@@ -196,7 +220,7 @@ export function PublicOrderForm({
       {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
       <Button type="button" className="mt-6 w-full" size="lg" onClick={submit} disabled={pending}>
-        {pending ? "Submitting…" : "Submit order"}
+        {pending ? "Placing order…" : "Place order"}
       </Button>
     </>
   );

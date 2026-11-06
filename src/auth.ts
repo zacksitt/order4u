@@ -1,15 +1,12 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compareSync } from "bcryptjs";
-import { z } from "zod";
 
 import { authConfig } from "@/auth.config";
+import { loginSchema } from "@/lib/input-rules";
 import { prisma } from "@/server/db";
 
-const credentialsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-});
+const credentialsSchema = loginSchema;
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
@@ -25,13 +22,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const { email, password } = parsed.data;
         const user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase() },
+          where: { email },
         });
         if (!user?.isActive) return null;
         if (!compareSync(password, user.passwordHash)) return null;
 
         const membership = await prisma.tenantMembership.findFirst({
-          where: { userId: user.id, role: { in: ["agent", "cargo"] } },
+          where: { userId: user.id, role: { in: ["agent", "cargo", "customer"] } },
           orderBy: { role: "asc" },
         });
         if (!membership) return null;

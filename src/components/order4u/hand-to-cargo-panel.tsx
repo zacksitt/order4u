@@ -80,7 +80,7 @@ export function HandToCargoPanel({ order, cargoUsers }: HandToCargoPanelProps) {
         onClick={onHandClick}
         disabled={pending || cargoUsers.length === 0}
       >
-        {pending ? "Saving…" : `Hand full order to ${assignee?.displayName ?? "cargo"}`}
+        {pending ? "Saving…" : `Give to ${assignee?.displayName ?? "cargo"}`}
       </Button>
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

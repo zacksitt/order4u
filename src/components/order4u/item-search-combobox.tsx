@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { FieldLabel } from "@/components/ui/field-label";
 import { Input } from "@/components/ui/input";
 import { fmtThb } from "@/lib/format-money";
+import { MAX_ITEM_TITLE, MAX_SEARCH } from "@/lib/input-rules";
 import type { CatalogItem } from "@/lib/types";
 import { searchCatalogItemsAction } from "@/server/actions/catalog";
 import { cn } from "@/lib/utils";
@@ -36,7 +37,7 @@ export function ItemSearchCombobox({
     let cancelled = false;
     const t = setTimeout(() => {
       setLoading(true);
-      searchCatalogItemsAction(value)
+      searchCatalogItemsAction(value.slice(0, MAX_SEARCH))
         .then((items) => {
           if (!cancelled) setResults(items.slice(0, 8));
         })
@@ -64,15 +65,16 @@ export function ItemSearchCombobox({
 
   return (
     <div className="space-y-2">
-      <FieldLabel>{label} <span className="text-red-500">*</span></FieldLabel>
+      <FieldLabel required={required}>{label}</FieldLabel>
       <div className="relative">
         <Input
           value={value}
           placeholder={placeholder}
           onChange={(e) => {
-            onChange(e.target.value);
+            onChange(e.target.value.slice(0, MAX_ITEM_TITLE));
             setOpen(true);
           }}
+          maxLength={MAX_ITEM_TITLE}
           onFocus={() => setOpen(true)}
           autoComplete="off"
         />

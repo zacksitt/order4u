@@ -1,6 +1,6 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 
-import type { InvoiceLineDisplay } from "@/lib/invoice-display";
+import { lineGoodsThb, lineShippingThb, lineTotalThb, type InvoiceLineDisplay } from "@/lib/invoice-display";
 import "@/lib/pdf/register-font";
 import { productInvoiceThbAmountDue } from "@/lib/product-invoice-calc";
 import type { InvoiceSnapshot } from "@/lib/types";
@@ -62,15 +62,25 @@ export function ProductInvoicePdfDocument({
           <View style={styles.rowHeader}>
             <Text style={styles.colItem}>Item</Text>
             <Text style={styles.colQty}>Qty</Text>
-            <Text style={styles.colLine}>Line THB</Text>
+            <Text style={styles.colLine}>Total THB</Text>
           </View>
-          {lines.map((line, i) => (
-            <View key={i} style={styles.row}>
-              <Text style={styles.colItem}>{line.title}</Text>
-              <Text style={styles.colQty}>{line.qty}</Text>
-              <Text style={styles.colLine}>{fmtThb(line.price * line.qty)}</Text>
-            </View>
-          ))}
+          {lines.map((line, i) => {
+            const shipping = lineShippingThb(line);
+            return (
+              <View key={i} style={styles.row}>
+                <View style={styles.colItem}>
+                  <Text>{line.title}</Text>
+                  {shipping > 0 ? (
+                    <Text style={{ color: "#555", fontSize: 8, marginTop: 2 }}>
+                      Items {fmtThb(lineGoodsThb(line))} + shipping {fmtThb(shipping)}
+                    </Text>
+                  ) : null}
+                </View>
+                <Text style={styles.colQty}>{line.qty}</Text>
+                <Text style={styles.colLine}>{fmtThb(lineTotalThb(line))}</Text>
+              </View>
+            );
+          })}
         </View>
 
         <View style={styles.totals}>
@@ -79,7 +89,7 @@ export function ProductInvoicePdfDocument({
             <Text>{fmtThb(snapshot.thbSubtotal)}</Text>
           </View>
           <View style={styles.totalRow}>
-            <Text>Order Shipping Fees</Text>
+            <Text>Thai shipping</Text>
             <Text>{fmtThb(snapshot.thbShipping)}</Text>
           </View>
           <View style={styles.totalRow}>
@@ -88,7 +98,7 @@ export function ProductInvoicePdfDocument({
           </View>
           {feePercent > 0 && (
             <View style={styles.totalRow}>
-              <Text>Agent fee ({feePercent}%)</Text>
+              <Text>Service fee ({feePercent}%)</Text>
               <Text>
                 {fmtThb(snapshot.serviceFeeThb)} / {fmtMmk(snapshot.serviceFeeMmk)}
               </Text>

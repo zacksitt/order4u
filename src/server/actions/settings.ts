@@ -3,23 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { firstIssueMessage, tenantSettingsSchema } from "@/lib/input-rules";
 import { requireAgent } from "@/server/auth/session";
 import { prisma } from "@/server/db";
 import { appendAction } from "@/server/services/actions-log";
 
-const updateSchema = z.object({
-  shopName: z.string().min(1),
-  thbMmkRate: z.number().positive(),
-  defaultServiceFeePercent: z.number().min(0).max(100),
-  paymentInstructions: z.string(),
-});
+const updateSchema = tenantSettingsSchema;
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
 export async function updateTenantSettings(raw: z.infer<typeof updateSchema>): Promise<ActionResult> {
   const session = await requireAgent();
   const parsed = updateSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, error: "Invalid settings." };
+  if (!parsed.success) return { ok: false, error: firstIssueMessage(parsed.error, "Invalid settings.") };
 
   const current = await prisma.tenant.findUniqueOrThrow({
     where: { id: session.tenantId },

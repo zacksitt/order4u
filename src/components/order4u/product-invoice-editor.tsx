@@ -23,6 +23,8 @@ type ProductInvoiceEditorProps = {
   /** Controlled agent fee % (use with onFeePercentChange). */
   feePercent?: number;
   onFeePercentChange?: (value: number) => void;
+  /** Customer orders use the shop default and cannot change the fee. */
+  feeReadOnly?: boolean;
   title?: string;
   lines?: InvoiceLineDisplay[];
 };
@@ -36,6 +38,7 @@ export function ProductInvoiceEditor({
   initialFeePercent = DEFAULT_TENANT_SETTINGS.defaultServiceFeePercent,
   feePercent: feePercentProp,
   onFeePercentChange,
+  feeReadOnly = false,
   title = "Product invoice preview",
   lines,
 }: ProductInvoiceEditorProps) {
@@ -71,40 +74,43 @@ export function ProductInvoiceEditor({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="fee-percent">Agent fee (% of THB total)</Label>
-          <Input
-            id="fee-percent"
-            type="number"
-            min={0}
-            max={100}
-            step="0.1"
-            value={feePercent}
-            onChange={(e) => setFeePercent(Number(e.target.value) || 0)}
-          />
-          <p className="text-xs text-muted-foreground">Default from settings is {initialFeePercent}%.</p>
+      {(!feeReadOnly || !shippingReadOnly) && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {!feeReadOnly && (
+            <div className="space-y-2">
+              <Label htmlFor="fee-percent">Service fee (% of THB total)</Label>
+              <Input
+                id="fee-percent"
+                type="number"
+                min={0}
+                max={100}
+                step="0.1"
+                inputMode="decimal"
+                value={feePercent}
+                onChange={(e) => setFeePercent(Number(e.target.value) || 0)}
+              />
+              <p className="text-xs text-muted-foreground">Default from settings is {initialFeePercent}%.</p>
+            </div>
+          )}
+          {!shippingReadOnly && (
+            <div className="space-y-2">
+              <Label htmlFor="th-shipping">Thai shipping (THB)</Label>
+              <Input
+                id="th-shipping"
+                type="number"
+                min={0}
+                step="1"
+                value={shipping}
+                onChange={(e) => setShipping(Number(e.target.value) || 0)}
+              />
+            </div>
+          )}
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="th-shipping">Order Shipping Fees</Label>
-          <Input
-            id="th-shipping"
-            type="number"
-            min={0}
-            step="1"
-            value={shipping}
-            readOnly={shippingReadOnly}
-            onChange={(e) => setShipping(Number(e.target.value) || 0)}
-          />
-          {shippingReadOnly ? (
-            <p className="text-xs text-muted-foreground">Sum of each item’s shipping fee.</p>
-          ) : null}
-        </div>
-      </div>
+      )}
 
       {lines && lines.length > 0 && <InvoiceLineItems lines={lines} />}
 
-      <InvoiceBlock title={title} snapshot={snapshot} />
+      <InvoiceBlock title={title} snapshot={snapshot} hideShipping />
     </div>
   );
 }

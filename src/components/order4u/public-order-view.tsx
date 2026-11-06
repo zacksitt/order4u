@@ -2,6 +2,7 @@
 
 import { Package } from "lucide-react";
 
+import { CargoInvoiceBreakdown } from "@/components/order4u/cargo-invoice-card";
 import { ProductInvoiceCard } from "@/components/order4u/product-invoice-card";
 import { orderItemsToInvoiceLines } from "@/lib/invoice-display";
 import { OrderTimeline } from "@/components/order4u/order-timeline";
@@ -9,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fmtCargoFee, fmtThbLine } from "@/lib/format-money";
+import { fmtThbLine } from "@/lib/format-money";
 import { buildCustomerTimeline } from "@/lib/order-timeline";
 import { isCargoPaid, isProductPaid } from "@/lib/payment-status";
 import { ITEM_STATUS_LABEL, orderSummaryLabel } from "@/lib/status-labels";
@@ -18,13 +19,18 @@ import type { PublicOrder } from "@/lib/types";
 type PublicOrderViewProps = {
   order: PublicOrder;
   shopName?: string;
+  /** "account" is the signed-in customer area; "public" is the shared tracking link. */
+  variant?: "public" | "account";
 };
+
+const PUBLIC_FOOTER = "Anyone with this link can see this order. Your phone number is not shown.";
 
 function fmtMmk(n: number) {
   return `${n.toLocaleString("en-US")} MMK`;
 }
 
-export function PublicOrderView({ order, shopName = "Demo Shop" }: PublicOrderViewProps) {
+export function PublicOrderView({ order, shopName = "Demo Shop", variant = "public" }: PublicOrderViewProps) {
+  const isAccount = variant === "account";
   const showTracking = isProductPaid(order.productPaymentStatus);
   const summary = orderSummaryLabel(
     order.productPaymentStatus,
@@ -47,10 +53,11 @@ export function PublicOrderView({ order, shopName = "Demo Shop" }: PublicOrderVi
           <CardContent className="-mt-4 space-y-4 px-4 pb-6">
             <Card className="border-amber-200 bg-amber-50 shadow-sm">
               <CardContent className="p-4 text-sm">
-                <p className="font-medium text-amber-900">Product invoice</p>
+                <p className="font-medium text-amber-900">Waiting for payment</p>
                 <p className="mt-2 text-amber-800">
-                  Pay the product invoice your agent sent in chat. Tracking appears here after payment
-                  is confirmed.
+                  {isAccount
+                    ? "The shop will check your items and send payment details in chat. After you pay, send the screenshot. Tracking appears here once payment is confirmed."
+                    : "Pay the invoice below, then send the payment screenshot in chat. Tracking appears here once payment is confirmed."}
                 </p>
               </CardContent>
             </Card>
@@ -67,9 +74,7 @@ export function PublicOrderView({ order, shopName = "Demo Shop" }: PublicOrderVi
             )}
           </CardContent>
         </Card>
-        <p className="text-center text-[10px] text-muted-foreground">
-          Private link — do not share publicly. Phone number is not shown on this page.
-        </p>
+        {!isAccount && <p className="text-center text-[10px] text-muted-foreground">{PUBLIC_FOOTER}</p>}
       </div>
     );
   }
@@ -81,7 +86,7 @@ export function PublicOrderView({ order, shopName = "Demo Shop" }: PublicOrderVi
           {shopName}
         </p>
         <h1 className="mt-1 text-center text-2xl font-bold">{order.code}</h1>
-        <p className="text-center text-sm text-muted-foreground">Your order — no login required</p>
+        <p className="text-center text-sm text-muted-foreground">Order tracking</p>
       </div>
 
       <Card className="shadow-sm">
@@ -172,30 +177,21 @@ export function PublicOrderView({ order, shopName = "Demo Shop" }: PublicOrderVi
                       : "Cargo invoice — payment due"}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {order.items.map((item) => (
-                    <div key={item.id} className="flex justify-between gap-3 text-sm">
-                      <span className="min-w-0 break-words">{item.title}</span>
-                      <span className="tabular-nums whitespace-nowrap">Qty {item.qty}</span>
-                    </div>
-                  ))}
-                  <p className="text-sm text-muted-foreground">{order.cargoInvoice.weightKg} kg</p>
-                  <p className="text-lg font-bold tabular-nums">{fmtCargoFee(order.cargoInvoice)}</p>
+                <CardContent>
+                  <CargoInvoiceBreakdown invoice={order.cargoInvoice} />
                 </CardContent>
               </Card>
             </>
           )}
           {!order.cargoInvoice && order.fulfillment !== "cargo_invoiced" && (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Cargo invoice will appear after warehouse check.
+              The cargo invoice appears here after cargo receives the shipment.
             </p>
           )}
         </TabsContent>
       </Tabs>
 
-      <p className="text-center text-[10px] text-muted-foreground pt-2">
-        Private link — do not share publicly. Phone number is not shown on this page.
-      </p>
+      {!isAccount && <p className="text-center text-[10px] text-muted-foreground pt-2">{PUBLIC_FOOTER}</p>}
     </div>
   );
 }

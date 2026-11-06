@@ -43,7 +43,7 @@ export function staffPwaManifest(): MetadataRoute.Manifest {
       {
         name: "Cargo queue",
         short_name: "Cargo",
-        url: "/cargo/queue",
+        url: "/cargo/orders",
         icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
       },
     ],

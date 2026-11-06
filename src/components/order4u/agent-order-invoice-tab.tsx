@@ -31,8 +31,7 @@ export function AgentOrderInvoiceTab({ order, shopName }: AgentOrderInvoiceTabPr
         />
         {!isProductPaid(order.productPaymentStatus) && (
           <p className="text-sm text-muted-foreground">
-            Download the PDF and send it in chat. Mark product paid on the Workflow tab after the customer
-            transfers MMK.
+            Download the PDF and send it in chat. Tap Customer paid on the order after they transfer MMK.
           </p>
         )}
       </div>

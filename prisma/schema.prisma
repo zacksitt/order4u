@@ -11,6 +11,7 @@ enum MembershipRole {
   agent
   cargo
   admin
+  customer
 }
 
 enum ItemStatus {
@@ -80,6 +81,7 @@ model Tenant {
   customers   Customer[]
   orders      Order[]
   catalogItems CatalogItem[]
+  itemCategories ItemCategory[]
   notifications Notification[]
   actionsLogs   ActionsLog[]
 
@@ -95,9 +97,11 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
 
   memberships          TenantMembership[]
+  customerProfile      Customer?
   ordersAsAgent        Order[] @relation("OrderAgent")
   ordersAsCargo        Order[] @relation("OrderCargoAssignee")
   ordersHandedToCargo  Order[] @relation("OrderHandedBy")
+  ordersCreated        Order[] @relation("OrderCreatedBy")
   defaultAgentForTenants Tenant[] @relation("TenantDefaultAgent")
   notifications        Notification[]
   actionsLogsUpdated   ActionsLog[] @relation("ActionsLogUpdater")
@@ -120,6 +124,7 @@ model TenantMembership {
 model Customer {
   id                  String  @id @default(uuid())
   tenantId            String  @map("tenant_id")
+  userId              String? @unique @map("user_id")
   phone               String
   name                String
   portalAccessToken   String? @unique @map("portal_access_token")
@@ -128,11 +133,27 @@ model Customer {
   trustedBuyBeforePay Boolean @default(false) @map("trusted_buy_before_pay")
   notes               String?
 
-  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
   orders Order[]
 
   @@unique([tenantId, messengerPsid])
   @@map("customers")
+}
+
+model ItemCategory {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  name          String
+  cargoPriceThb Decimal  @map("cargo_price_thb") @db.Decimal(12, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@unique([tenantId, name])
+  @@map("item_categories")
 }
 
 model CatalogItem {
@@ -159,6 +180,7 @@ model Order {
   assignedCargoUserId   String?              @map("assigned_cargo_user_id")
   handedToCargoByUserId String?              @map("handed_to_cargo_by_user_id")
   customerId            String               @map("customer_id")
+  createdByUserId       String?              @map("created_by_user_id")
   code                  String
   publicAccessToken     String               @unique @map("public_access_token")
   fulfillmentStatus     FulfillmentStatus    @default(collecting) @map("fulfillment_status")
@@ -176,6 +198,7 @@ model Order {
   assignedCargoUser User?          @relation("OrderCargoAssignee", fields: [assignedCargoUserId], references: [id])
   handedToCargoBy  User?           @relation("OrderHandedBy", fields: [handedToCargoByUserId], references: [id])
   customer         Customer        @relation(fields: [customerId], references: [id])
+  createdBy        User?           @relation("OrderCreatedBy", fields: [createdByUserId], references: [id])
   items            OrderItem[]
   productInvoice   ProductInvoice?
   cargoInvoice     CargoInvoice?
@@ -202,9 +225,11 @@ model OrderItem {
   marketplace    Marketplace?
   shopeeShopId   String?     @map("shopee_shop_id")
   shopeeItemId   String?     @map("shopee_item_id")
+  itemCategoryId String?    @map("item_category_id")
 
-  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  catalogItem CatalogItem? @relation(fields: [catalogItemId], references: [id])
+  order        Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  catalogItem  CatalogItem?  @relation(fields: [catalogItemId], references: [id])
+  itemCategory ItemCategory? @relation(fields: [itemCategoryId], references: [id], onDelete: SetNull)
 
   @@map("order_items")
 }
@@ -232,11 +257,31 @@ model CargoInvoice {
   issuedAt          DateTime @default(now()) @map("issued_at")
   chargeableWeightKg Decimal @map("chargeable_weight_kg") @db.Decimal(8, 2)
   thbTotalDue       Decimal? @map("thb_total_due") @db.Decimal(12, 2)
+  subtotalThb       Decimal? @map("subtotal_thb") @db.Decimal(12, 2)
+  discountThb       Decimal  @default(0) @map("discount_thb") @db.Decimal(12, 2)
   mmkTotalDue       Int      @map("mmk_total_due")
 
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  lines CargoInvoiceLine[]
 
   @@map("cargo_invoices")
+}
+
+/// Snapshot of one category on a cargo invoice; prices can differ from the category default.
+model CargoInvoiceLine {
+  id             String  @id @default(uuid())
+  cargoInvoiceId String  @map("cargo_invoice_id")
+  sortOrder      Int     @map("sort_order")
+  categoryName   String  @map("category_name")
+  qty            Int
+  weightKg       Decimal @default(0) @map("weight_kg") @db.Decimal(8, 2)
+  /// THB per kg for this category on this invoice.
+  unitPriceThb   Decimal @map("unit_price_thb") @db.Decimal(12, 2)
+  totalThb       Decimal @map("total_thb") @db.Decimal(12, 2)
+
+  cargoInvoice CargoInvoice @relation(fields: [cargoInvoiceId], references: [id], onDelete: Cascade)
+
+  @@map("cargo_invoice_lines")
 }
 
 model Notification {

@@ -1,6 +1,8 @@
 import type {
   CargoInvoice,
+  CargoInvoiceLine,
   Customer,
+  ItemCategory,
   Order as DbOrder,
   OrderItem as DbOrderItem,
   ProductInvoice,
@@ -16,11 +18,13 @@ import type {
   ProductPaymentStatus,
 } from "@/lib/types";
 
+type OrderItemRow = DbOrderItem & { itemCategory?: ItemCategory | null };
+
 type OrderRow = DbOrder & {
   customer: Customer;
-  items: DbOrderItem[];
+  items: OrderItemRow[];
   productInvoice: ProductInvoice | null;
-  cargoInvoice: CargoInvoice | null;
+  cargoInvoice: (CargoInvoice & { lines?: CargoInvoiceLine[] }) | null;
 };
 
 function num(v: { toString(): string } | number | null | undefined): number {
@@ -40,15 +44,28 @@ function mapProductInvoice(inv: ProductInvoice): InvoiceSnapshot {
   };
 }
 
-function mapCargoInvoice(inv: CargoInvoice): NonNullable<Order["cargoInvoice"]> {
+function mapCargoInvoice(
+  inv: CargoInvoice & { lines?: CargoInvoiceLine[] },
+): NonNullable<Order["cargoInvoice"]> {
   return {
     weightKg: num(inv.chargeableWeightKg),
     mmkTotal: inv.mmkTotalDue,
     thbTotal: inv.thbTotalDue != null ? num(inv.thbTotalDue) : undefined,
+    subtotalThb: inv.subtotalThb != null ? num(inv.subtotalThb) : undefined,
+    discountThb: num(inv.discountThb),
+    lines: [...(inv.lines ?? [])]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((line) => ({
+        categoryName: line.categoryName,
+        qty: line.qty,
+        weightKg: num(line.weightKg),
+        unitPriceThb: num(line.unitPriceThb),
+        totalThb: num(line.totalThb),
+      })),
   };
 }
 
-function mapItem(row: DbOrderItem): OrderItem {
+function mapItem(row: OrderItemRow): OrderItem {
   return {
     id: row.id,
     title: row.title,
@@ -60,6 +77,11 @@ function mapItem(row: DbOrderItem): OrderItem {
     actualPrice: row.actualPrice != null ? num(row.actualPrice) : undefined,
     catalogItemId: row.catalogItemId ?? undefined,
     checkOk: row.cargoCheckOk ?? undefined,
+    checkNote: row.cargoCheckNote ?? undefined,
+    categoryId: row.itemCategoryId ?? undefined,
+    categoryName: row.itemCategory?.name,
+    categoryCargoPriceThb:
+      row.itemCategory != null ? num(row.itemCategory.cargoPriceThb) : undefined,
   };
 }
 
@@ -82,7 +104,7 @@ export function mapOrder(row: OrderRow): Order {
 
 export const orderDetailInclude = {
   customer: true,
-  items: { orderBy: { sortOrder: "asc" as const } },
+  items: { orderBy: { sortOrder: "asc" as const }, include: { itemCategory: true } },
   productInvoice: true,
-  cargoInvoice: true,
+  cargoInvoice: { include: { lines: true } },
 };

@@ -4,31 +4,24 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ItemStatus } from "@/lib/types";
 
+import { agentCreateOrderSchema, firstIssueMessage, zThbPositive, zUuid } from "@/lib/input-rules";
 import { generatePortalAccessToken } from "@/lib/order-code";
 import { canHandOrderToCargo } from "@/lib/order-rules";
 import { requireAgent } from "@/server/auth/session";
 import { prisma } from "@/server/db";
 import { mapOrder, orderDetailInclude } from "@/server/mappers/order";
 import { appendAction } from "@/server/services/actions-log";
-import { createOrderForTenant, orderLineSchema } from "@/server/services/create-order";
+import { createOrderForTenant } from "@/server/services/create-order";
 import { notifyUser } from "@/server/services/notifications";
 
-const lineSchema = orderLineSchema;
-
-const createOrderSchema = z.object({
-  customerName: z.string().min(1),
-  customerPhone: z.string().optional().default(""),
-  thbShipping: z.number().min(0),
-  serviceFeePercent: z.number().min(0).max(100),
-  lines: z.array(lineSchema).min(1),
-});
+const createOrderSchema = agentCreateOrderSchema;
 
 export type ActionResult = { ok: true; orderId?: string } | { ok: false; error: string };
 
 export async function createOrder(raw: z.infer<typeof createOrderSchema>): Promise<ActionResult> {
   const session = await requireAgent();
   const parsed = createOrderSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, error: "Invalid order data." };
+  if (!parsed.success) return { ok: false, error: firstIssueMessage(parsed.error, "Invalid order data.") };
 
   const { customerName, customerPhone, thbShipping, serviceFeePercent, lines } = parsed.data;
 
@@ -36,7 +29,7 @@ export async function createOrder(raw: z.infer<typeof createOrderSchema>): Promi
     data: {
       tenantId: session.tenantId,
       name: customerName,
-      phone: customerPhone.trim() || "—",
+      phone: customerPhone || "—",
       portalAccessToken: generatePortalAccessToken(),
     },
   });
@@ -55,28 +48,30 @@ export async function createOrder(raw: z.infer<typeof createOrderSchema>): Promi
 }
 
 export async function markProductPaid(orderId: string): Promise<ActionResult> {
+  const id = zUuid.safeParse(orderId);
+  if (!id.success) return { ok: false, error: "Invalid order." };
   const session = await requireAgent();
   const order = await prisma.order.findFirst({
-    where: { id: orderId, tenantId: session.tenantId, assignedAgentId: session.userId },
+    where: { id: id.data, tenantId: session.tenantId, assignedAgentId: session.userId },
   });
   if (!order) return { ok: false, error: "Order not found." };
   if (order.productPaymentStatus === "paid") return { ok: true };
 
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
-      where: { id: orderId },
+      where: { id: id.data },
       data: { productPaymentStatus: "paid", productPaidAt: new Date() },
     });
     await appendAction(tx, {
       tenantId: session.tenantId,
       entityType: "order",
-      entityId: orderId,
+      entityId: id.data,
       userId: session.userId,
       action: "product_paid",
     });
   });
 
-  revalidatePath(`/agent/orders/${orderId}`);
+  revalidatePath(`/agent/orders/${id.data}`);
   revalidatePath("/agent/orders");
   revalidatePath(`/o/${order.publicAccessToken}`);
   return { ok: true };
@@ -96,40 +91,47 @@ export async function updateOrderItemStatus(input: {
   status: ItemStatus;
   actualPrice?: number;
 }): Promise<ActionResult> {
+  const ids = z.object({ orderId: zUuid, itemId: zUuid }).safeParse(input);
+  if (!ids.success) return { ok: false, error: "Invalid item." };
   const session = await requireAgent();
   const statusParsed = itemStatusSchema.safeParse(input.status);
   if (!statusParsed.success) return { ok: false, error: "Invalid status." };
+  const priceParsed =
+    input.actualPrice === undefined ? undefined : zThbPositive.safeParse(input.actualPrice);
+  if (priceParsed && !priceParsed.success) {
+    return { ok: false, error: firstIssueMessage(priceParsed.error, "Enter the THB amount you paid.") };
+  }
 
   const order = await prisma.order.findFirst({
-    where: { id: input.orderId, tenantId: session.tenantId, assignedAgentId: session.userId },
+    where: { id: ids.data.orderId, tenantId: session.tenantId, assignedAgentId: session.userId },
     include: { items: true },
   });
   if (!order) return { ok: false, error: "Order not found." };
-  const item = order.items.find((i) => i.id === input.itemId);
+  const item = order.items.find((i) => i.id === ids.data.itemId);
   if (!item) return { ok: false, error: "Item not found." };
 
-  const detailParts = [input.itemId, item.status, statusParsed.data];
-  if (input.actualPrice !== undefined) detailParts.push(String(input.actualPrice));
+  const detailParts = [ids.data.itemId, item.status, statusParsed.data];
+  if (priceParsed) detailParts.push(String(priceParsed.data));
 
   await prisma.$transaction(async (tx) => {
     await tx.orderItem.update({
-      where: { id: input.itemId },
+      where: { id: ids.data.itemId },
       data: {
         status: statusParsed.data,
-        ...(input.actualPrice !== undefined ? { actualPrice: input.actualPrice } : {}),
+        ...(priceParsed ? { actualPrice: priceParsed.data } : {}),
       },
     });
     await appendAction(tx, {
       tenantId: session.tenantId,
       entityType: "order",
-      entityId: input.orderId,
+      entityId: ids.data.orderId,
       userId: session.userId,
       action: "item_status_changed",
       detail: detailParts.join(" "),
     });
   });
 
-  revalidatePath(`/agent/orders/${input.orderId}`);
+  revalidatePath(`/agent/orders/${ids.data.orderId}`);
   return { ok: true };
 }
 
@@ -138,36 +140,37 @@ export async function updateOrderItemActualPrice(input: {
   itemId: string;
   actualPrice: number;
 }): Promise<ActionResult> {
+  const parsed = z
+    .object({ orderId: zUuid, itemId: zUuid, actualPrice: zThbPositive })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, error: firstIssueMessage(parsed.error, "Enter a THB amount.") };
   const session = await requireAgent();
-  if (!Number.isFinite(input.actualPrice) || input.actualPrice < 0) {
-    return { ok: false, error: "Enter a THB amount." };
-  }
 
   const order = await prisma.order.findFirst({
-    where: { id: input.orderId, tenantId: session.tenantId, assignedAgentId: session.userId },
+    where: { id: parsed.data.orderId, tenantId: session.tenantId, assignedAgentId: session.userId },
     include: { items: true },
   });
   if (!order) return { ok: false, error: "Order not found." };
-  const item = order.items.find((i) => i.id === input.itemId);
+  const item = order.items.find((i) => i.id === parsed.data.itemId);
   if (!item) return { ok: false, error: "Item not found." };
   if (item.status === "cancelled") return { ok: false, error: "Cancelled items have no purchase price." };
 
   await prisma.$transaction(async (tx) => {
     await tx.orderItem.update({
-      where: { id: input.itemId },
-      data: { actualPrice: input.actualPrice },
+      where: { id: parsed.data.itemId },
+      data: { actualPrice: parsed.data.actualPrice },
     });
     await appendAction(tx, {
       tenantId: session.tenantId,
       entityType: "order",
-      entityId: input.orderId,
+      entityId: parsed.data.orderId,
       userId: session.userId,
       action: "actual_price_updated",
-      detail: `${input.itemId} ${input.actualPrice}`,
+      detail: `${parsed.data.itemId} ${parsed.data.actualPrice}`,
     });
   });
 
-  revalidatePath(`/agent/orders/${input.orderId}`);
+  revalidatePath(`/agent/orders/${parsed.data.orderId}`);
   return { ok: true };
 }
 
@@ -175,22 +178,24 @@ export async function handOrderToCargo(input: {
   orderId: string;
   cargoUserId: string;
 }): Promise<ActionResult> {
+  const parsed = z.object({ orderId: zUuid, cargoUserId: zUuid }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Choose cargo staff." };
   const session = await requireAgent();
   const order = await prisma.order.findFirst({
-    where: { id: input.orderId, tenantId: session.tenantId, assignedAgentId: session.userId },
+    where: { id: parsed.data.orderId, tenantId: session.tenantId, assignedAgentId: session.userId },
     include: orderDetailInclude,
   });
   if (!order) return { ok: false, error: "Order not found." };
 
   const mapped = mapOrder(order);
   if (!canHandOrderToCargo(mapped)) {
-    return { ok: false, error: "All items must be at agent before handoff." };
+    return { ok: false, error: "All items must arrive before you hand the order to cargo." };
   }
 
   const cargoMember = await prisma.tenantMembership.findFirst({
     where: {
       tenantId: session.tenantId,
-      userId: input.cargoUserId,
+      userId: parsed.data.cargoUserId,
       role: "cargo",
     },
   });
@@ -198,9 +203,9 @@ export async function handOrderToCargo(input: {
 
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
-      where: { id: input.orderId },
+      where: { id: parsed.data.orderId },
       data: {
-        assignedCargoUserId: input.cargoUserId,
+        assignedCargoUserId: parsed.data.cargoUserId,
         handedToCargoByUserId: session.userId,
         handedToCargoAt: new Date(),
         fulfillmentStatus: "handed_to_cargo",
@@ -209,24 +214,24 @@ export async function handOrderToCargo(input: {
     await appendAction(tx, {
       tenantId: session.tenantId,
       entityType: "order",
-      entityId: input.orderId,
+      entityId: parsed.data.orderId,
       userId: session.userId,
       action: "handed_to_cargo",
-      detail: input.cargoUserId,
+      detail: parsed.data.cargoUserId,
     });
     await notifyUser(tx, {
       tenantId: session.tenantId,
-      userId: input.cargoUserId,
+      userId: parsed.data.cargoUserId,
       type: "handed_to_cargo",
-      orderId: input.orderId,
+      orderId: parsed.data.orderId,
       orderCode: order.code,
-      href: `/cargo/orders/${input.orderId}`,
+      href: `/cargo/orders/${parsed.data.orderId}`,
     });
   });
 
-  revalidatePath(`/agent/orders/${input.orderId}`);
+  revalidatePath(`/agent/orders/${parsed.data.orderId}`);
   revalidatePath("/agent/orders");
-  revalidatePath("/cargo/queue");
+  revalidatePath("/cargo/orders");
   revalidatePath("/cargo", "layout");
   return { ok: true };
 }

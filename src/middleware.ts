@@ -20,10 +20,13 @@ export default NextAuth(authConfig).auth((req) => {
   if (pathname.startsWith("/cargo") && role !== "cargo") {
     return NextResponse.redirect(new URL("/login?error=cargo", req.url));
   }
+  if (pathname.startsWith("/customer") && role !== "customer") {
+    return NextResponse.redirect(new URL("/login?error=customer", req.url));
+  }
 
   return NextResponse.next();
 });
 
 export const config = {
-  matcher: ["/agent/:path*", "/cargo/:path*"],
+  matcher: ["/agent/:path*", "/cargo/:path*", "/customer/:path*"],
 };

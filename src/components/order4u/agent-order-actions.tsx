@@ -10,6 +10,7 @@ import type { CargoStaffUser, ItemStatus, Order } from "@/lib/types";
 import { canHandOrderToCargo } from "@/lib/order-rules";
 import { isProductPaid } from "@/lib/payment-status";
 import { ITEM_STATUS_LABEL } from "@/lib/status-labels";
+import { firstIssueMessage, zThbPositive } from "@/lib/input-rules";
 import { markProductPaid, updateOrderItemStatus } from "@/server/actions/agent-orders";
 
 type AgentOrderActionsProps = {
@@ -46,7 +47,7 @@ export function AgentOrderActions({ order, cargoUsers }: AgentOrderActionsProps)
     <div className="flex flex-col gap-2">
       {!isProductPaid(order.productPaymentStatus) && (
         <Button size="sm" className="justify-start" onClick={markPaid} disabled={pending}>
-          Mark product paid
+          Customer paid
         </Button>
       )}
       {isProductPaid(order.productPaymentStatus) && (
@@ -92,16 +93,28 @@ function ItemStatusRow({
   const [status, setStatus] = useState(item.status);
   const [actualPrice, setActualPrice] = useState(item.actualPrice?.toString() ?? "");
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   function save() {
+    setError(null);
+    let price: number | undefined;
+    if (actualPrice !== "") {
+      const parsed = zThbPositive.safeParse(Number(actualPrice));
+      if (!parsed.success) {
+        setError(firstIssueMessage(parsed.error, "Enter a THB amount."));
+        return;
+      }
+      price = parsed.data;
+    }
     startTransition(async () => {
       const result = await updateOrderItemStatus({
         orderId,
         itemId: item.id,
         status,
-        actualPrice: actualPrice === "" ? undefined : Number(actualPrice),
+        actualPrice: price,
       });
       if (result.ok) router.refresh();
+      else setError(result.error);
     });
   }
 
@@ -137,6 +150,7 @@ function ItemStatusRow({
           />
         </div>
       </div>
+      {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="button" size="sm" variant="outline" onClick={save} disabled={disabled || pending}>
         Save line
       </Button>

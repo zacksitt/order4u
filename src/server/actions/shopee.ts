@@ -10,7 +10,7 @@ import {
   shopeePriceToThb,
   shopeeVideoCaptionFromHtml,
 } from "@/lib/shopee";
-import { requireAgent } from "@/server/auth/session";
+import { requireOrderCreator } from "@/server/auth/session";
 
 const LOOKUP_TIMEOUT_MS = 8_000;
 const USER_AGENT =
@@ -67,12 +67,12 @@ export async function lookupProductUrl(url: string): Promise<ShopeeLookupResult>
   if (parseShopeeUrl(raw) || isShopeeShortUrl(raw) || isShopeeVideoUrl(raw)) {
     return lookupShopeeProduct(raw);
   }
-  await requireAgent();
+  await requireOrderCreator();
   return { ok: false, error: UNSUPPORTED_LINK };
 }
 
 export async function lookupShopeeProduct(url: string): Promise<ShopeeLookupResult> {
-  await requireAgent();
+  await requireOrderCreator();
   let target = url.trim();
   try {
     target = await resolveShopeeTarget(target);
@@ -228,7 +228,7 @@ async function resolveLazadaTarget(raw: string): Promise<string> {
 }
 
 async function lookupLazadaProduct(url: string): Promise<ShopeeLookupResult> {
-  await requireAgent();
+  await requireOrderCreator();
   let target = url.trim();
   try {
     target = await resolveLazadaTarget(target);

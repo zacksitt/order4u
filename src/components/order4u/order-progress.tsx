@@ -9,7 +9,7 @@ import { isProductPaid } from "@/lib/payment-status";
 import type { Order } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const STEPS = ["Paid", "Buying", "At agent", "Cargo", "Delivered"] as const;
+const STEPS = ["Paid", "Buying", "Arrived", "At cargo", "Delivered"] as const;
 
 function progressIndex(order: Order): number {
   if (!isProductPaid(order.productPaymentStatus)) return 0;

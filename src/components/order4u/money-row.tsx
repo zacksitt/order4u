@@ -36,6 +36,7 @@ export function InvoiceBlock({
   title,
   snapshot,
   weightKg,
+  hideShipping = false,
 }: {
   title: string;
   snapshot: InvoiceSnapshot | (Omit<InvoiceSnapshot, "serviceFeePercent" | "serviceFeeThb"> & {
@@ -43,18 +44,26 @@ export function InvoiceBlock({
     serviceFeeThb?: number;
   });
   weightKg?: number;
+  /** Hide the Thai shipping row when shipping is already shown on each item. */
+  hideShipping?: boolean;
 }) {
   const thbTotal = snapshot.thbSubtotal + snapshot.thbShipping;
   const feePercent = snapshot.serviceFeePercent ?? 0;
   const feeThb = snapshot.serviceFeeThb ?? 0;
-  const feeLabel = feePercent > 0 ? `Agent fee (${feePercent}%)` : "Agent service fee";
+  const feeLabel = feePercent > 0 ? `Service fee (${feePercent}%)` : "Service fee";
 
   return (
     <div className="space-y-3 rounded-xl border border-border bg-card p-4">
       <h3 className="font-semibold">{title}</h3>
-      <MoneyRow label="Subtotal (THB)" thb={snapshot.thbSubtotal} />
-      <MoneyRow label="Order Shipping Fees" thb={snapshot.thbShipping} />
-      <MoneyRow label="THB total" thb={thbTotal} bold />
+      {hideShipping ? (
+        <MoneyRow label="Subtotal (THB)" thb={thbTotal} />
+      ) : (
+        <>
+          <MoneyRow label="Subtotal (THB)" thb={snapshot.thbSubtotal} />
+          <MoneyRow label="Thai shipping" thb={snapshot.thbShipping} />
+          <MoneyRow label="THB total" thb={thbTotal} bold />
+        </>
+      )}
       {feePercent > 0 && (
         <MoneyRow label={`${feeLabel} (THB)`} thb={feeThb} mmk={snapshot.serviceFeeMmk} />
       )}

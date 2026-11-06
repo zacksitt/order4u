@@ -50,6 +50,13 @@ export type CatalogItem = {
   description?: string;
 };
 
+/** Cargo price list. Price is THB per unit and feeds the suggested cargo fee. */
+export type ItemCategory = {
+  id: string;
+  name: string;
+  cargoPriceThb: number;
+};
+
 export type CargoStaffUser = {
   id: string;
   displayName: string;
@@ -72,6 +79,21 @@ export type OrderItem = {
   /** Optional link to catalog row used when line was added. */
   catalogItemId?: string;
   checkOk?: boolean;
+  checkNote?: string;
+  /** Cargo category assigned on this line. */
+  categoryId?: string;
+  categoryName?: string;
+  /** THB per unit from the assigned category. */
+  categoryCargoPriceThb?: number;
+};
+
+export type CargoInvoiceLine = {
+  categoryName: string;
+  qty: number;
+  weightKg: number;
+  /** THB per kg. */
+  unitPriceThb: number;
+  totalThb: number;
 };
 
 export type Order = {
@@ -89,6 +111,10 @@ export type Order = {
     mmkTotal: number;
     /** Present when the warehouse entered the fee in THB. */
     thbTotal?: number;
+    /** Sum of category lines before discount. */
+    subtotalThb?: number;
+    discountThb: number;
+    lines: CargoInvoiceLine[];
   };
   publicToken: string;
   /** Set when agent hands order to cargo — cargo queue filters on this user. */

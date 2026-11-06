@@ -4,6 +4,7 @@ import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 
 import { signIn } from "@/auth";
+import { firstIssueMessage, loginSchema } from "@/lib/input-rules";
 import { prisma } from "@/server/db";
 import { compareSync } from "bcryptjs";
 
@@ -13,26 +14,33 @@ export async function loginWithCredentials(
   email: string,
   password: string,
 ): Promise<LoginResult | void> {
-  const normalized = email.trim().toLowerCase();
+  const parsed = loginSchema.safeParse({ email, password });
+  if (!parsed.success) return { ok: false, error: firstIssueMessage(parsed.error, "Invalid email or password.") };
+  const { email: normalized, password: secret } = parsed.data;
   const user = await prisma.user.findUnique({ where: { email: normalized } });
-  if (!user?.isActive || !compareSync(password, user.passwordHash)) {
+  if (!user?.isActive || !compareSync(secret, user.passwordHash)) {
     return { ok: false, error: "Invalid email or password." };
   }
 
   const membership = await prisma.tenantMembership.findFirst({
-    where: { userId: user.id, role: { in: ["agent", "cargo"] } },
+    where: { userId: user.id, role: { in: ["agent", "cargo", "customer"] } },
     orderBy: { role: "asc" },
   });
   if (!membership) {
-    return { ok: false, error: "No agent or cargo access for this account." };
+    return { ok: false, error: "No access for this account." };
   }
 
-  const redirectTo = membership.role === "cargo" ? "/cargo/queue" : "/agent/dashboard";
+  const redirectTo =
+    membership.role === "cargo"
+      ? "/cargo/orders"
+      : membership.role === "customer"
+        ? "/customer/orders"
+        : "/agent/dashboard";
 
   try {
     await signIn("credentials", {
       email: normalized,
-      password,
+      password: secret,
       redirect: false,
     });
   } catch (e) {
