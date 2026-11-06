@@ -165,10 +165,13 @@ export const zPaymentInstructions = preprocessString(
   z.string().max(MAX_INSTRUCTIONS, "Payment instructions are too long (max 2,000 characters)."),
 );
 
-/** Live rows mix uuid(), cuid(), and seed ids like `ord_1`. */
-const DB_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$/;
-
-export const zUuid = z.string().trim().regex(DB_ID, "Invalid id.");
+export const zUuid = z
+  .string()
+  .trim()
+  .regex(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    "Invalid id.",
+  );
 
 export const zCatalogQuery = preprocessString(
   sanitizePlainText,

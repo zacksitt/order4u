@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
+    "db:normalize-ids": "node scripts/migrate-ids-to-uuid.mjs",
     "postinstall": "prisma generate"
   },
   "prisma": {

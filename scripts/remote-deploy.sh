@@ -104,6 +104,8 @@ step "Update code" sync_repo
 step "Install dependencies" install_deps
 step "Build" npm run build
 step "Update database" npx prisma db push --accept-data-loss
+step "Rewrite ids to UUID" node scripts/migrate-ids-to-uuid.mjs
+step "Restore foreign keys" npx prisma db push --accept-data-loss
 step "Ensure pm2" ensure_pm2
 step "Restart app" restart_app
 echo "Deploy finished"
