@@ -165,16 +165,10 @@ export const zPaymentInstructions = preprocessString(
   z.string().max(MAX_INSTRUCTIONS, "Payment instructions are too long (max 2,000 characters)."),
 );
 
-const UUID_OR_CUID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$|^c[a-z0-9]{8,31}$/i;
+/** Live rows mix uuid(), cuid(), and seed ids like `ord_1`. */
+const DB_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$/;
 
-/** Prisma `@default(uuid())` plus older cuid() ids still on production rows. */
-export const zUuid = z
-  .string()
-  .trim()
-  .min(1, "Invalid id.")
-  .max(64, "Invalid id.")
-  .regex(UUID_OR_CUID, "Invalid id.");
+export const zUuid = z.string().trim().regex(DB_ID, "Invalid id.");
 
 export const zCatalogQuery = preprocessString(
   sanitizePlainText,
