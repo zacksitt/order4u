@@ -7,6 +7,7 @@ import { firstIssueMessage, publicCreateOrderSchema } from "@/lib/input-rules";
 import { getCustomerByPortalToken } from "@/server/queries/customer-portal";
 import { getTenantBySlug } from "@/server/queries/tenant-messenger";
 import { createOrderForTenant, resolveDefaultAgentId } from "@/server/services/create-order";
+import { customerPiiRead, customerPiiWrite } from "@/server/crypto/customer-pii";
 import { prisma } from "@/server/db";
 
 const submitPublicOrderSchema = publicCreateOrderSchema;
@@ -38,11 +39,18 @@ export async function submitPublicOrder(
     return { ok: false, error: "Shop has no agent configured." };
   }
 
+  const existingPii = customerPiiRead(customer);
   await prisma.customer.update({
     where: { id: customer.id },
     data: {
       name: customerName,
-      phone: customerPhone || customer.phone || "—",
+      ...customerPiiWrite({
+        phone: customerPhone || existingPii.phone || "—",
+        email: existingPii.email,
+        facebookProfileUrl: existingPii.facebookProfileUrl,
+        notes: existingPii.notes,
+        messengerPsid: existingPii.messengerPsid,
+      }),
     },
   });
 

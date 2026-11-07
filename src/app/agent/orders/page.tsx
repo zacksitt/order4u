@@ -1,23 +1,38 @@
 import Link from "next/link";
 
 import { OrderCard } from "@/components/order4u/order-card";
+import { OrdersCustomerFilter } from "@/components/order4u/orders-customer-filter";
 import { PageHeader } from "@/components/order4u/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { agentOrdersHref } from "@/lib/agent-orders-href";
+import { zUuid } from "@/lib/input-rules";
 import { ORDER_FILTERS, findOrderFilter } from "@/lib/order-filters";
 import { cn } from "@/lib/utils";
+import { getAgentCustomerById } from "@/server/queries/customers";
 import { listAgentOrders } from "@/server/queries/orders";
 
-type PageProps = { searchParams: Promise<{ view?: string }> };
+type PageProps = { searchParams: Promise<{ view?: string; customer?: string }> };
 
 export default async function AgentOrdersPage({ searchParams }: PageProps) {
-  const { view } = await searchParams;
-  const orders = await listAgentOrders();
+  const { view, customer: customerParam } = await searchParams;
+  const customerId = zUuid.safeParse(customerParam ?? "").success ? customerParam : undefined;
+  const [orders, selectedCustomer] = await Promise.all([
+    listAgentOrders({ customerId }),
+    customerId ? getAgentCustomerById(customerId) : Promise.resolve(null),
+  ]);
   const current = orders.filter((o) => o.fulfillment !== "delivered");
   const history = orders.filter((o) => o.fulfillment === "delivered");
-  const active = findOrderFilter(view);
+  const isHistory = view === "history";
+  const active = findOrderFilter(isHistory ? "all" : view);
   const filtered = current.filter(active.match);
   const counts = ORDER_FILTERS.map((filter) => ({ filter, count: current.filter(filter.match).length }));
+  const selected = selectedCustomer
+    ? { id: selectedCustomer.id, name: selectedCustomer.name }
+    : customerId
+      ? { id: customerId, name: "Unknown customer" }
+      : null;
+  const tabView = isHistory ? "history" : active.key;
 
   return (
     <>
@@ -31,10 +46,20 @@ export default async function AgentOrdersPage({ searchParams }: PageProps) {
         }
       />
 
-      <Tabs defaultValue={view === "history" ? "history" : "current"}>
+      <OrdersCustomerFilter selected={selected} view={tabView} />
+
+      <Tabs value={isHistory ? "history" : "current"}>
         <TabsList className="mb-4">
-          <TabsTrigger value="current">Current ({current.length})</TabsTrigger>
-          <TabsTrigger value="history">Delivered ({history.length})</TabsTrigger>
+          <TabsTrigger value="current" asChild>
+            <Link href={agentOrdersHref({ view: active.key, customer: customerId })}>
+              Current ({current.length})
+            </Link>
+          </TabsTrigger>
+          <TabsTrigger value="history" asChild>
+            <Link href={agentOrdersHref({ view: "history", customer: customerId })}>
+              Delivered ({history.length})
+            </Link>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="current" className="space-y-4">
@@ -44,7 +69,7 @@ export default async function AgentOrdersPage({ searchParams }: PageProps) {
               .map(({ filter, count }) => (
                 <Link
                   key={filter.key}
-                  href={filter.key === "all" ? "/agent/orders" : `/agent/orders?view=${filter.key}`}
+                  href={agentOrdersHref({ view: filter.key, customer: customerId })}
                   aria-current={filter.key === active.key ? "page" : undefined}
                   className={cn(
                     "rounded-full border border-border px-3 py-1 text-xs font-medium",
@@ -61,7 +86,9 @@ export default async function AgentOrdersPage({ searchParams }: PageProps) {
             {filtered.length === 0 ? (
               <p className="col-span-full py-8 text-center text-sm text-muted-foreground">
                 {current.length === 0
-                  ? "No orders yet. Tap New order to create one."
+                  ? selected
+                    ? "No current orders for this customer."
+                    : "No orders yet. Tap New order to create one."
                   : `No orders in “${active.label}”.`}
               </p>
             ) : (
@@ -74,7 +101,9 @@ export default async function AgentOrdersPage({ searchParams }: PageProps) {
 
         <TabsContent value="history" className="space-y-3">
           {history.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-12 text-center">No delivered orders yet.</p>
+            <p className="text-sm text-muted-foreground py-12 text-center">
+              {selected ? "No delivered orders for this customer." : "No delivered orders yet."}
+            </p>
           ) : (
             history.map((order) => (
               <OrderCard key={order.id} order={order} href={`/agent/orders/${order.id}`} />

@@ -1,3 +1,4 @@
+import { zUuid } from "@/lib/input-rules";
 import type { FulfillmentStatus } from "@/lib/types";
 import { requireAgent, requireCargo, requireCustomer } from "@/server/auth/session";
 import { mapOrder, orderDetailInclude } from "@/server/mappers/order";
@@ -16,13 +17,18 @@ const CARGO_QUEUE_STATUSES: FulfillmentStatus[] = [
   "delivered",
 ];
 
-export async function listAgentOrders(): Promise<Order[]> {
+export async function listAgentOrders(opts?: { customerId?: string }): Promise<Order[]> {
   const session = await requireAgent();
+  const customerId = zUuid.safeParse(opts?.customerId ?? "").success ? opts!.customerId : undefined;
   const rows = await prisma.order.findMany({
-    where: { tenantId: session.tenantId, assignedAgentId: session.userId },
+    where: {
+      tenantId: session.tenantId,
+      assignedAgentId: session.userId,
+      ...(customerId ? { customerId } : {}),
+    },
     include: orderDetailInclude,
     orderBy: { updatedAt: "desc" },
-    take: 200,
+    ...(customerId ? {} : { take: 200 }),
   });
   return rows.map(mapOrder);
 }

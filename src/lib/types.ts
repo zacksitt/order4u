@@ -80,6 +80,8 @@ export type OrderItem = {
   catalogItemId?: string;
   checkOk?: boolean;
   checkNote?: string;
+  /** Customer product options / notes on this line. */
+  customerNote?: string;
   /** Cargo category assigned on this line. */
   categoryId?: string;
   categoryName?: string;
@@ -117,8 +119,10 @@ export type Order = {
     lines: CargoInvoiceLine[];
   };
   publicToken: string;
+  createdAt: Date;
   /** Set when agent hands order to cargo — cargo queue filters on this user. */
   assignedCargoUserId?: string;
+  assignedCargoName?: string;
 };
 
 /** Customer-facing order — no phone. */

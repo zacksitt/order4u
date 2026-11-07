@@ -17,6 +17,7 @@ import type {
   OrderItem,
   ProductPaymentStatus,
 } from "@/lib/types";
+import { customerPiiRead } from "@/server/crypto/customer-pii";
 
 type OrderItemRow = DbOrderItem & { itemCategory?: ItemCategory | null };
 
@@ -25,6 +26,7 @@ type OrderRow = DbOrder & {
   items: OrderItemRow[];
   productInvoice: ProductInvoice | null;
   cargoInvoice: (CargoInvoice & { lines?: CargoInvoiceLine[] }) | null;
+  assignedCargoUser?: { displayName: string } | null;
 };
 
 function num(v: { toString(): string } | number | null | undefined): number {
@@ -78,6 +80,7 @@ function mapItem(row: OrderItemRow): OrderItem {
     catalogItemId: row.catalogItemId ?? undefined,
     checkOk: row.cargoCheckOk ?? undefined,
     checkNote: row.cargoCheckNote ?? undefined,
+    customerNote: row.customerNote ?? undefined,
     categoryId: row.itemCategoryId ?? undefined,
     categoryName: row.itemCategory?.name,
     categoryCargoPriceThb:
@@ -89,7 +92,7 @@ export function mapOrder(row: OrderRow): Order {
   return {
     id: row.id,
     code: row.code,
-    customerPhone: row.customer.phone,
+    customerPhone: customerPiiRead(row.customer).phone,
     customerName: row.customer.name,
     productPaymentStatus: row.productPaymentStatus as ProductPaymentStatus,
     cargoPaymentStatus: row.cargoPaymentStatus as CargoPaymentStatus,
@@ -98,12 +101,15 @@ export function mapOrder(row: OrderRow): Order {
     productInvoice: row.productInvoice ? mapProductInvoice(row.productInvoice) : undefined,
     cargoInvoice: row.cargoInvoice ? mapCargoInvoice(row.cargoInvoice) : undefined,
     publicToken: row.publicAccessToken,
+    createdAt: row.createdAt,
     assignedCargoUserId: row.assignedCargoUserId ?? undefined,
+    assignedCargoName: row.assignedCargoUser?.displayName,
   };
 }
 
 export const orderDetailInclude = {
   customer: true,
+  assignedCargoUser: { select: { displayName: true } },
   items: { orderBy: { sortOrder: "asc" as const }, include: { itemCategory: true } },
   productInvoice: true,
   cargoInvoice: { include: { lines: true } },

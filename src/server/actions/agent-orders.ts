@@ -5,12 +5,12 @@ import { z } from "zod";
 import type { ItemStatus } from "@/lib/types";
 
 import { agentCreateOrderSchema, firstIssueMessage, zThbPositive, zUuid } from "@/lib/input-rules";
-import { generatePortalAccessToken } from "@/lib/order-code";
 import { canHandOrderToCargo } from "@/lib/order-rules";
 import { requireAgent } from "@/server/auth/session";
 import { prisma } from "@/server/db";
 import { mapOrder, orderDetailInclude } from "@/server/mappers/order";
 import { appendAction } from "@/server/services/actions-log";
+import { createAgentCustomerRecord } from "@/server/services/create-customer-login";
 import { createOrderForTenant } from "@/server/services/create-order";
 import { notifyUser } from "@/server/services/notifications";
 
@@ -23,27 +23,38 @@ export async function createOrder(raw: z.infer<typeof createOrderSchema>): Promi
   const parsed = createOrderSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: firstIssueMessage(parsed.error, "Invalid order data.") };
 
-  const { customerName, customerPhone, thbShipping, serviceFeePercent, lines } = parsed.data;
+  const { customerName, customerPhone, customerId, thbShipping, serviceFeePercent, lines } = parsed.data;
 
-  const customer = await prisma.customer.create({
-    data: {
+  let resolvedCustomerId = customerId;
+  if (resolvedCustomerId) {
+    const existing = await prisma.customer.findFirst({
+      where: { id: resolvedCustomerId, tenantId: session.tenantId },
+      select: { id: true },
+    });
+    if (!existing) return { ok: false, error: "Customer not found." };
+  } else {
+    const created = await createAgentCustomerRecord({
       tenantId: session.tenantId,
       name: customerName,
-      phone: customerPhone || "—",
-      portalAccessToken: generatePortalAccessToken(),
-    },
-  });
+      phone: customerPhone,
+    });
+    if (!created.ok) return created;
+    resolvedCustomerId = created.customerId;
+  }
+
+  if (!resolvedCustomerId) return { ok: false, error: "Customer is required." };
 
   const { orderId } = await createOrderForTenant({
     tenantId: session.tenantId,
     assignedAgentId: session.userId,
-    customerId: customer.id,
+    customerId: resolvedCustomerId,
     thbShipping,
     serviceFeePercent,
     lines,
   });
 
   revalidatePath("/agent/orders");
+  revalidatePath("/agent/customers");
   return { ok: true, orderId };
 }
 

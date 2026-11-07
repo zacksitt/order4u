@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { BarChart3, LayoutDashboard, MoreHorizontal, Package, PlusCircle, Settings } from "lucide-react";
+import { BarChart3, LayoutDashboard, MoreHorizontal, Package, PlusCircle, Settings, Users } from "lucide-react";
 
 export type AgentNavLink = {
   href: string;
@@ -36,6 +36,13 @@ export const AGENT_NAV_LINKS: AgentNavLink[] = [
     icon: PlusCircle,
     fab: true,
     sidebar: false,
+  },
+  {
+    href: "/agent/customers",
+    label: "Customers",
+    icon: Users,
+    mobileMore: true,
+    sidebar: true,
   },
   {
     href: "/agent/reports",

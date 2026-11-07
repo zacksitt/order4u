@@ -6,6 +6,7 @@ import { z } from "zod";
 import { customerCreateOrderSchema, firstIssueMessage } from "@/lib/input-rules";
 import { generatePortalAccessToken } from "@/lib/order-code";
 import { requireCustomer } from "@/server/auth/session";
+import { customerPiiRead, customerPiiWrite } from "@/server/crypto/customer-pii";
 import { prisma } from "@/server/db";
 import { createOrderForTenant, resolveDefaultAgentId } from "@/server/services/create-order";
 
@@ -35,15 +36,24 @@ export async function createCustomerOrder(
   const customer = existing
     ? await prisma.customer.update({
         where: { id: existing.id },
-        data: { name: customerName, phone },
+        data: {
+          name: customerName,
+          ...customerPiiWrite({
+            phone,
+            email: customerPiiRead(existing).email,
+            facebookProfileUrl: customerPiiRead(existing).facebookProfileUrl,
+            notes: customerPiiRead(existing).notes,
+            messengerPsid: customerPiiRead(existing).messengerPsid,
+          }),
+        },
       })
     : await prisma.customer.create({
         data: {
           tenantId: session.tenantId,
           userId: session.userId,
           name: customerName,
-          phone,
           portalAccessToken: generatePortalAccessToken(),
+          ...customerPiiWrite({ phone }),
         },
       });
 

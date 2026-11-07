@@ -1,5 +1,6 @@
 import type { TenantSettings } from "@/lib/agent-settings";
 import { requireAgent, requireCustomer } from "@/server/auth/session";
+import { customerPiiRead } from "@/server/crypto/customer-pii";
 import { prisma } from "@/server/db";
 
 export async function getTenantSettingsForAgent(): Promise<TenantSettings & { paymentInstructions: string }> {
@@ -23,7 +24,8 @@ export async function getTenantSettingsForCustomer(): Promise<
     prisma.tenant.findUniqueOrThrow({ where: { id: session.tenantId } }),
     prisma.customer.findUnique({ where: { userId: session.userId } }),
   ]);
-  const phone = customer?.phone && customer.phone !== "—" ? customer.phone : "";
+  const phonePlain = customer ? customerPiiRead(customer).phone : "";
+  const phone = phonePlain && phonePlain !== "—" ? phonePlain : "";
   return {
     shopName: tenant.name,
     thbMmkRate: Number(tenant.defaultThbMmkRate),

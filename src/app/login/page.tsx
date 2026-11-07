@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { InstallAppButton } from "@/components/order4u/install-app-button";
 import { LoginForm } from "@/components/order4u/login-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth } from "@/auth";
@@ -17,7 +18,9 @@ export default async function LoginPage({ searchParams }: PageProps) {
   const session = await auth();
   if (session?.role === "agent") redirect("/agent/dashboard");
   if (session?.role === "cargo") redirect("/cargo/orders");
-  if (session?.role === "customer") redirect("/customer/orders");
+  if (session?.role === "customer") {
+    redirect(session.mustChangePassword ? "/customer/change-password" : "/customer/orders");
+  }
 
   const { error } = await searchParams;
   const areaError = error ? AREA_ERROR[error] : undefined;
@@ -39,6 +42,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
             </p>
           )}
           <LoginForm />
+          <InstallAppButton className="w-full justify-center" />
         </CardContent>
       </Card>
     </main>

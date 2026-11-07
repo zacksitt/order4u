@@ -15,6 +15,13 @@ describe("marketplaceFromLine", () => {
     assert.deepEqual(marketplaceFromLine({ url: "https://s.lazada.co.th/s.Ab12" }), {});
   });
 
+  it("uses the form source when the URL is not a product page yet", () => {
+    assert.deepEqual(
+      marketplaceFromLine({ url: "https://s.lazada.co.th/s.Ab12", marketplace: "lazada" }),
+      { marketplace: "lazada" },
+    );
+  });
+
   it("marks Shopee only when the fetched ids match the URL", () => {
     const url = "https://shopee.co.th/product/12345/67890";
     assert.deepEqual(marketplaceFromLine({ url, shopeeShopId: "12345", shopeeItemId: "67890" }), {

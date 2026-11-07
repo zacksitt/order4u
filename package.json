@@ -13,6 +13,7 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:normalize-ids": "node scripts/migrate-ids-to-uuid.mjs",
+    "db:encrypt-pii": "tsx scripts/encrypt-customer-pii.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

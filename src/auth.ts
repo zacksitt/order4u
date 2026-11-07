@@ -8,7 +8,7 @@ import { prisma } from "@/server/db";
 
 const credentialsSchema = loginSchema;
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
@@ -39,6 +39,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: user.displayName,
           tenantId: membership.tenantId,
           role: membership.role,
+          mustChangePassword: user.mustChangePassword,
         };
       },
     }),

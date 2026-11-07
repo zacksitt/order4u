@@ -1,8 +1,7 @@
 import { AgentBottomNav } from "@/components/order4u/agent-bottom-nav";
 import { AgentSidebar } from "@/components/order4u/agent-sidebar";
 import { NotificationBell } from "@/components/order4u/notification-bell";
-import { ShareAppButton } from "@/components/order4u/share-app-button";
-import { absolutePublicUrl } from "@/lib/app-url";
+import { InstallAppButton } from "@/components/order4u/install-app-button";
 import { listNotificationFeed } from "@/server/queries/notifications";
 import { getTenantSettingsForAgent } from "@/server/queries/tenant";
 
@@ -12,11 +11,9 @@ export default async function AgentLayout({ children }: LayoutProps<"/agent">) {
     listNotificationFeed(),
   ]);
 
-  const appUrl = absolutePublicUrl("/login");
-
   return (
     <div className="md:flex min-h-screen w-full">
-      <AgentSidebar shopName={shopName} notifications={feed} appUrl={appUrl} />
+      <AgentSidebar shopName={shopName} notifications={feed} />
       <div className="flex min-h-screen flex-1 flex-col pb-24 md:pb-0">
         <div className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
           <div>
@@ -24,7 +21,7 @@ export default async function AgentLayout({ children }: LayoutProps<"/agent">) {
             <p className="text-sm text-muted-foreground">{shopName}</p>
           </div>
           <div className="flex items-center gap-1">
-            <ShareAppButton url={appUrl} className="px-2" />
+            <InstallAppButton className="px-2" />
             <NotificationBell items={feed.items} unreadCount={feed.unreadCount} />
           </div>
         </div>

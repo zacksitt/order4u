@@ -87,6 +87,7 @@ export async function createOrderForTenant(input: {
           price: line.price,
           shippingFeeThb: line.shippingFeeThb ?? 0,
           catalogItemId: lineCatalogIds[i] ?? null,
+          customerNote: line.customerNote?.trim() || null,
           ...marketplaceFromLine(line),
         })),
       },

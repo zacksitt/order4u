@@ -135,7 +135,7 @@ export async function getAgentDashboardStats(): Promise<AgentDashboard> {
     {
       key: "ready-for-cargo",
       count: readyForCargo,
-      title: "Ready to give to cargo",
+      title: "Ready to ship to cargo",
       detail: "All items have arrived",
       cta: "Give to cargo",
       href: "/agent/orders?view=ready",

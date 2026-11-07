@@ -37,6 +37,7 @@ Edit **`.env.local`** (production):
 |----------|---------|
 | `DATABASE_URL` | `postgresql://user:pass@127.0.0.1:5432/order4u?schema=public` |
 | `AUTH_SECRET` | `openssl rand -base64 32` |
+| `CUSTOMER_PII_KEY` | `openssl rand -base64 32` (32-byte key; never commit the live value) |
 | `AUTH_URL` | `https://order4u.mmappdemo.space` (must match browser URL, **https**) |
 | `APP_URL` | `https://order4u.mmappdemo.space` |
 | `AUTH_SECRET` | same value in **`.env`** and **`.env.local`** if you use both |
@@ -61,6 +62,7 @@ Build and DB:
 npm ci
 npm run build
 npx prisma db push          # schema to DB (use migrate deploy when migrations exist)
+npm run db:encrypt-pii      # after CUSTOMER_PII_KEY is set
 npm run db:seed             # optional demo users
 ```
 
@@ -204,5 +206,6 @@ git pull
 npm ci
 npm run build
 npx prisma db push
+npm run db:encrypt-pii
 pm2 restart order4u
 ```

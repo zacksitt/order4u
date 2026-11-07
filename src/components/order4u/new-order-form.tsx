@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState, useTransition } from "react";
 
+import { CustomerSearchCombobox } from "@/components/order4u/customer-search-combobox";
 import { CatalogItemBadge, ItemSearchCombobox } from "@/components/order4u/item-search-combobox";
 import { ProductInvoiceEditor } from "@/components/order4u/product-invoice-editor";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import type { TenantSettings } from "@/lib/agent-settings";
 import { fmtThb } from "@/lib/format-money";
 import {
+  MAX_CUSTOMER_NOTE,
   MAX_ITEM_TITLE,
   MAX_NAME,
   MAX_QTY,
@@ -35,12 +37,22 @@ type DraftLine = {
   qty: number;
   price: number;
   shippingFee: number;
+  marketplace: "shopee" | "lazada";
+  customerNote: string;
   catalogItemId?: string;
   shopeeShopId?: string;
   shopeeItemId?: string;
 };
 
-const DEFAULT_LINE: DraftLine = { title: "", url: "", qty: 1, price: 0, shippingFee: 0 };
+const DEFAULT_LINE: DraftLine = {
+  title: "",
+  url: "",
+  qty: 1,
+  price: 0,
+  shippingFee: 0,
+  marketplace: "shopee",
+  customerNote: "",
+};
 
 type NewOrderFormProps = {
   tenantDefaults: TenantSettings;
@@ -56,6 +68,7 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
   const [error, setError] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState(initialCustomer?.name ?? "");
   const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone ?? "");
+  const [customerId, setCustomerId] = useState<string | undefined>();
   const [feePercent, setFeePercent] = useState(tenantDefaults.defaultServiceFeePercent);
   const [lines, setLines] = useState<DraftLine[]>([{ ...DEFAULT_LINE }]);
   const [fetchingIndex, setFetchingIndex] = useState<number | null>(null);
@@ -147,6 +160,8 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
       qty: l.qty,
       price: l.price,
       shippingFeeThb: isCustomer ? 0 : l.shippingFee || 0,
+      marketplace: isCustomer ? l.marketplace : undefined,
+      ...(l.customerNote.trim() ? { customerNote: l.customerNote.trim() } : {}),
       ...(l.catalogItemId ? { catalogItemId: l.catalogItemId } : {}),
       ...(l.shopeeShopId && l.shopeeItemId
         ? { shopeeShopId: l.shopeeShopId, shopeeItemId: l.shopeeItemId }
@@ -178,6 +193,7 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
     const checked = agentCreateOrderSchema.safeParse({
       customerName,
       customerPhone,
+      customerId,
       thbShipping: shippingTotal,
       serviceFeePercent: feePercent,
       lines: payloadLines,
@@ -205,31 +221,73 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
           <CardTitle className="text-base">{isCustomer ? "Your details" : "Customer"}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <FieldLabel htmlFor="name" required>
-              Name
-            </FieldLabel>
-            <Input
-              id="name"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="e.g. Ma Thida"
-              autoComplete="name"
-              maxLength={MAX_NAME}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone (optional)</Label>
-            <Input
-              id="phone"
-              type="tel"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="e.g. 09 123 456 789"
-              autoComplete="tel"
-              maxLength={20}
-            />
-          </div>
+          {isCustomer ? (
+            <>
+              <div className="space-y-2">
+                <FieldLabel htmlFor="name" required>
+                  Name
+                </FieldLabel>
+                <Input
+                  id="name"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="e.g. Ma Thida"
+                  autoComplete="name"
+                  maxLength={MAX_NAME}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone (optional)</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="e.g. 09 123 456 789"
+                  autoComplete="tel"
+                  maxLength={20}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <CustomerSearchCombobox
+                value={customerName}
+                onChange={(name) => {
+                  setCustomerName(name);
+                  setCustomerId(undefined);
+                }}
+                onSelect={(customer) => {
+                  setCustomerId(customer.id);
+                  setCustomerName(customer.name);
+                  setCustomerPhone(customer.phone);
+                }}
+                onAddNew={(name) => {
+                  setCustomerId(undefined);
+                  setCustomerName(name);
+                }}
+              />
+              {customerId ? (
+                <p className="text-xs text-muted-foreground">Existing customer. Login is set on the Customers page.</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  New customer. Add email and password later on the Customers page if they need to sign in.
+                </p>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone (optional)</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="e.g. 09 123 456 789"
+                  autoComplete="tel"
+                  maxLength={20}
+                />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -250,6 +308,24 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
+              {isCustomer && (
+                <div className="space-y-2">
+                  <FieldLabel htmlFor={`source-${i}`} required>
+                    Source
+                  </FieldLabel>
+                  <select
+                    id={`source-${i}`}
+                    className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm"
+                    value={line.marketplace}
+                    onChange={(e) =>
+                      updateLine(i, { marketplace: e.target.value === "lazada" ? "lazada" : "shopee" })
+                    }
+                  >
+                    <option value="shopee">Shopee</option>
+                    <option value="lazada">Lazada</option>
+                  </select>
+                </div>
+              )}
               <div className="space-y-2">
                 <FieldLabel htmlFor={`url-${i}`} required>
                   Product URL (Shopee / Lazada)
@@ -350,6 +426,19 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
                   </div>
                 )}
               </div>
+              {isCustomer && (
+                <div className="space-y-2">
+                  <Label htmlFor={`note-${i}`}>Notes or product options</Label>
+                  <textarea
+                    id={`note-${i}`}
+                    className="flex min-h-[72px] w-full min-w-0 rounded-lg border border-input bg-background px-3 py-2 text-base md:text-sm"
+                    value={line.customerNote}
+                    onChange={(e) => updateLine(i, { customerNote: e.target.value })}
+                    maxLength={MAX_CUSTOMER_NOTE}
+                    placeholder="Size, color, variant…"
+                  />
+                </div>
+              )}
               <p className="text-xs text-muted-foreground">
                 {(() => {
                   const items = (line.price || 0) * (line.qty || 0);

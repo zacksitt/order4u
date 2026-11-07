@@ -59,3 +59,13 @@ export function orderSummaryLabel(
   if (fulfillment === "ready_for_cargo") return "Ready for cargo";
   return "Buying";
 }
+
+export const ORDER_SUMMARY_FILTERS = [
+  "Awaiting payment",
+  "Buying",
+  "Ready for cargo",
+  "At cargo",
+  "Cargo payment due",
+  "Shipping to Myanmar",
+  "Delivered",
+] as const;

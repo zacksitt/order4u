@@ -7,6 +7,7 @@ import { logout } from "@/server/actions/auth";
 
 export function CustomerNav() {
   const pathname = usePathname();
+  const mustChange = pathname.startsWith("/customer/change-password");
   const onOrders = pathname.startsWith("/customer/orders") && !pathname.endsWith("/new");
   const onNew = pathname.endsWith("/new");
 
@@ -17,18 +18,22 @@ export function CustomerNav() {
           Order4U
         </Link>
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
-          <Link
-            href="/customer/orders"
-            className={`text-xs font-medium ${onOrders ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            My orders
-          </Link>
-          <Link
-            href="/customer/orders/new"
-            className={`text-xs font-medium ${onNew ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            New order
-          </Link>
+          {!mustChange && (
+            <>
+              <Link
+                href="/customer/orders"
+                className={`text-xs font-medium ${onOrders ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                My orders
+              </Link>
+              <Link
+                href="/customer/orders/new"
+                className={`text-xs font-medium ${onNew ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                New order
+              </Link>
+            </>
+          )}
           <form action={logout}>
             <button
               type="submit"

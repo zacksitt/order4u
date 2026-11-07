@@ -34,7 +34,9 @@ export async function loginWithCredentials(
     membership.role === "cargo"
       ? "/cargo/orders"
       : membership.role === "customer"
-        ? "/customer/orders"
+        ? user.mustChangePassword
+          ? "/customer/change-password"
+          : "/customer/orders"
         : "/agent/dashboard";
 
   try {

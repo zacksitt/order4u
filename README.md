@@ -4,6 +4,8 @@ Buying Agent + Cargo platform (Thailand → Myanmar).
 
 - Requirements: [`../Buying_Agent_Cargo_Platform_Requirements.docx`](../Buying_Agent_Cargo_Platform_Requirements.docx)
 - Technical spec: [`../Buying_Agent_Cargo_Platform_Technical_Specification.md`](../Buying_Agent_Cargo_Platform_Technical_Specification.md)
+- Database design: [`docs/DATABASE.md`](./docs/DATABASE.md)
+- Technical changes (current slice): [`docs/TECHNICAL_CHANGES.md`](./docs/TECHNICAL_CHANGES.md)
 
 ## Stack
 

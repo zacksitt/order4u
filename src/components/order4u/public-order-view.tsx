@@ -139,6 +139,9 @@ export function PublicOrderView({ order, shopName = "Demo Shop", variant = "publ
               <CardContent className="flex justify-between gap-3 p-4 text-sm">
                 <div className="min-w-0">
                   <p className="font-medium break-words">{item.title}</p>
+                  {item.customerNote ? (
+                    <p className="mt-1 text-xs text-muted-foreground">{item.customerNote}</p>
+                  ) : null}
                   <p className="text-xs text-muted-foreground mt-1">Qty {item.qty}</p>
                 </div>
                 <div className="shrink-0 text-right">

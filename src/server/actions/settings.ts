@@ -36,6 +36,18 @@ export async function updateTenantSettings(raw: z.infer<typeof updateSchema>): P
         paymentInstructions: parsed.data.paymentInstructions,
       },
     });
+    const historyCount = await tx.exchangeRateHistory.count({
+      where: { tenantId: session.tenantId },
+    });
+    if (rateChanged || historyCount === 0) {
+      await tx.exchangeRateHistory.create({
+        data: {
+          tenantId: session.tenantId,
+          rate: parsed.data.thbMmkRate,
+          setByUserId: session.userId,
+        },
+      });
+    }
     if (rateChanged || feeChanged) {
       await appendAction(tx, {
         tenantId: session.tenantId,

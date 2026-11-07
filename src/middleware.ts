@@ -14,6 +14,14 @@ export default NextAuth(authConfig).auth((req) => {
 
   const role = req.auth.role;
 
+  if (
+    role === "customer" &&
+    req.auth.mustChangePassword &&
+    !pathname.startsWith("/customer/change-password")
+  ) {
+    return NextResponse.redirect(new URL("/customer/change-password", req.url));
+  }
+
   if (pathname.startsWith("/agent") && role !== "agent") {
     return NextResponse.redirect(new URL("/login?error=agent", req.url));
   }

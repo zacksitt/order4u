@@ -8,12 +8,14 @@ declare module "next-auth" {
     };
     tenantId: string;
     role: MembershipRole;
+    mustChangePassword?: boolean;
   }
 
   interface User {
     id: string;
     tenantId: string;
     role: MembershipRole;
+    mustChangePassword?: boolean;
   }
 }
 
@@ -22,5 +24,6 @@ declare module "next-auth/jwt" {
     userId: string;
     tenantId: string;
     role: MembershipRole;
+    mustChangePassword?: boolean;
   }
 }

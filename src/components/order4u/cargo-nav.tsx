@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { InstallAppButton } from "@/components/order4u/install-app-button";
 import { NotificationBell } from "@/components/order4u/notification-bell";
 import { logout } from "@/server/actions/auth";
 import type { NotificationFeed } from "@/server/queries/notifications";
@@ -18,7 +19,8 @@ export function CargoNav({ notifications }: { notifications: NotificationFeed })
         <Link href="/cargo/orders" className="font-bold text-primary shrink-0">
           Order4U Cargo
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
+          <InstallAppButton className="px-2" />
           <NotificationBell items={notifications.items} unreadCount={notifications.unreadCount} />
           <Link
             href="/cargo/orders"

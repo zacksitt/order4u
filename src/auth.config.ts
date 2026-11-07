@@ -8,11 +8,15 @@ export const authConfig = {
   pages: { signIn: "/login" },
   providers: [],
   callbacks: {
-    jwt({ token, user }) {
+    jwt({ token, user, trigger, session }) {
       if (user) {
         token.userId = user.id!;
         token.tenantId = user.tenantId;
         token.role = user.role;
+        token.mustChangePassword = Boolean(user.mustChangePassword);
+      }
+      if (trigger === "update" && session && "mustChangePassword" in session) {
+        token.mustChangePassword = Boolean(session.mustChangePassword);
       }
       return token;
     },
@@ -22,6 +26,7 @@ export const authConfig = {
       }
       session.tenantId = token.tenantId as string;
       session.role = token.role as Session["role"];
+      session.mustChangePassword = Boolean(token.mustChangePassword);
       return session;
     },
   },

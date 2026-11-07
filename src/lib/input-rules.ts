@@ -8,8 +8,10 @@ export const MAX_NAME = 80;
 export const MAX_ITEM_TITLE = 200;
 export const MAX_URL = 2_000;
 export const MAX_INSTRUCTIONS = 2_000;
+export const MAX_CUSTOMER_NOTE = 500;
 export const MAX_EMAIL = 120;
 export const MAX_PASSWORD = 128;
+export const MIN_SET_PASSWORD = 8;
 export const MAX_SEARCH = 80;
 
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g;
@@ -155,9 +157,39 @@ export const zEmail = preprocessString(
   z.email("Enter a valid email.").max(MAX_EMAIL, "Email is too long."),
 );
 
+export const zOptionalEmail = preprocessString(
+  (value) => stripControls(value).trim().toLowerCase(),
+  z
+    .string()
+    .max(MAX_EMAIL, "Email is too long.")
+    .refine((value) => value === "" || z.email().safeParse(value).success, "Enter a valid email."),
+);
+
+export const zOptionalHttpUrl = preprocessString(
+  (value) => stripControls(value).trim(),
+  z
+    .string()
+    .max(MAX_URL, "URL is too long.")
+    .refine((value) => {
+      if (value === "") return true;
+      if (!/^https?:\/\//i.test(value)) return false;
+      try {
+        new URL(value);
+        return true;
+      } catch {
+        return false;
+      }
+    }, "Enter a valid URL starting with http:// or https://."),
+);
+
 export const zPassword = z
   .string()
   .min(1, "Enter your password.")
+  .max(MAX_PASSWORD, "Password is too long.");
+
+export const zSetPassword = z
+  .string()
+  .min(MIN_SET_PASSWORD, `Password must be at least ${MIN_SET_PASSWORD} characters.`)
   .max(MAX_PASSWORD, "Password is too long.");
 
 export const zPaymentInstructions = preprocessString(
@@ -173,9 +205,45 @@ export const zUuid = z
     "Invalid id.",
   );
 
+export const customerProfileSchema = z
+  .object({
+    id: zUuid,
+    name: zPersonName,
+    phone: zPhone.optional().default(""),
+    email: zOptionalEmail.optional().default(""),
+    password: z.string().max(MAX_PASSWORD).optional().default(""),
+    facebookProfileUrl: zOptionalHttpUrl.optional().default(""),
+    notes: z.preprocess(
+      (value) => (typeof value === "string" ? sanitizeMultiline(value) : value),
+      z.string().max(MAX_INSTRUCTIONS, "Notes are too long.").optional().default(""),
+    ),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.password) return;
+    if (value.password.length < MIN_SET_PASSWORD) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Password must be at least ${MIN_SET_PASSWORD} characters.`,
+        path: ["password"],
+      });
+    }
+    if (!value.email) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Enter an email to set a password.",
+        path: ["email"],
+      });
+    }
+  });
+
 export const zCatalogQuery = preprocessString(
   sanitizePlainText,
   z.string().max(MAX_SEARCH, "Search is too long."),
+);
+
+export const zCustomerNote = preprocessString(
+  sanitizeMultiline,
+  z.string().max(MAX_CUSTOMER_NOTE, "Notes are too long (max 500 characters)."),
 );
 
 export const orderLineInputSchema = z.object({
@@ -188,6 +256,8 @@ export const orderLineInputSchema = z.object({
     (value) => (value === "" || value === null ? undefined : value),
     zUuid.optional(),
   ),
+  marketplace: z.enum(["shopee", "lazada", "other"]).optional(),
+  customerNote: zCustomerNote.optional(),
   shopeeShopId: z.string().min(1).max(40).optional(),
   shopeeItemId: z.string().min(1).max(40).optional(),
 });
@@ -203,7 +273,51 @@ export const customerCreateOrderSchema = z.object({
 export const agentCreateOrderSchema = customerCreateOrderSchema.extend({
   thbShipping: zThbNonNeg,
   serviceFeePercent: zPercent,
+  customerId: z.preprocess(
+    (value) => (value === "" || value === null ? undefined : value),
+    zUuid.optional(),
+  ),
 });
+
+export const agentCreateCustomerSchema = z
+  .object({
+    name: zPersonName,
+    phone: zPhone.optional().default(""),
+    email: zOptionalEmail.optional().default(""),
+    password: z.string().max(MAX_PASSWORD).optional().default(""),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.password) return;
+    if (value.password.length < MIN_SET_PASSWORD) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Password must be at least ${MIN_SET_PASSWORD} characters.`,
+        path: ["password"],
+      });
+    }
+    if (!value.email) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Enter an email to set a password.",
+        path: ["email"],
+      });
+    }
+  });
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: zPassword,
+    newPassword: zSetPassword,
+    confirmPassword: zSetPassword,
+  })
+  .refine((value) => value.newPassword === value.confirmPassword, {
+    message: "New passwords do not match.",
+    path: ["confirmPassword"],
+  })
+  .refine((value) => value.currentPassword !== value.newPassword, {
+    message: "Choose a different password from the current one.",
+    path: ["newPassword"],
+  });
 
 export const publicCreateOrderSchema = customerCreateOrderSchema.extend({
   shopSlug: preprocessString(

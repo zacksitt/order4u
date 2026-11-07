@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { fmtThb } from "@/lib/format-money";
 import {
+  MAX_CUSTOMER_NOTE,
   MAX_ITEM_TITLE,
   MAX_NAME,
   MAX_QTY,
@@ -26,9 +27,18 @@ type DraftLine = {
   url: string;
   qty: number;
   price: number;
+  marketplace: "shopee" | "lazada";
+  customerNote: string;
 };
 
-const DEFAULT_LINE: DraftLine = { title: "", url: "", qty: 1, price: 0 };
+const DEFAULT_LINE: DraftLine = {
+  title: "",
+  url: "",
+  qty: 1,
+  price: 0,
+  marketplace: "shopee",
+  customerNote: "",
+};
 
 type PublicOrderFormProps = {
   shopSlug: string;
@@ -86,6 +96,8 @@ export function PublicOrderForm({
         url: l.url,
         qty: l.qty,
         price: l.price,
+        marketplace: l.marketplace,
+        ...(l.customerNote.trim() ? { customerNote: l.customerNote.trim() } : {}),
       })),
     });
     if (!checked.success) {
@@ -143,6 +155,19 @@ export function PublicOrderForm({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-2">
+                <FieldLabel required>Source</FieldLabel>
+                <select
+                  className="h-11 w-full rounded-lg border border-input bg-background px-3 text-base md:text-sm"
+                  value={line.marketplace}
+                  onChange={(e) =>
+                    updateLine(i, { marketplace: e.target.value === "lazada" ? "lazada" : "shopee" })
+                  }
+                >
+                  <option value="shopee">Shopee</option>
+                  <option value="lazada">Lazada</option>
+                </select>
+              </div>
+              <div className="space-y-2">
                 <FieldLabel required>Product URL (Shopee / Lazada)</FieldLabel>
                 <Input
                   value={line.url}
@@ -180,6 +205,16 @@ export function PublicOrderForm({
                     onChange={(e) => updateLine(i, { price: Number(e.target.value) || 0 })}
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Notes or product options</Label>
+                <textarea
+                  className="flex min-h-[72px] w-full min-w-0 rounded-lg border border-input bg-background px-3 py-2 text-base md:text-sm"
+                  value={line.customerNote}
+                  onChange={(e) => updateLine(i, { customerNote: e.target.value })}
+                  maxLength={MAX_CUSTOMER_NOTE}
+                  placeholder="Size, color, variant…"
+                />
               </div>
               <p className="text-xs text-muted-foreground">
                 Line total: {fmtThb((line.price || 0) * (line.qty || 0))}

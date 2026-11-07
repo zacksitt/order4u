@@ -84,17 +84,19 @@ model Tenant {
   itemCategories ItemCategory[]
   notifications Notification[]
   actionsLogs   ActionsLog[]
+  exchangeRates ExchangeRateHistory[]
 
   @@map("tenants")
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  displayName  String   @map("display_name")
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  passwordHash        String   @map("password_hash")
+  displayName         String   @map("display_name")
+  isActive            Boolean  @default(true) @map("is_active")
+  mustChangePassword  Boolean  @default(false) @map("must_change_password")
+  createdAt           DateTime @default(now()) @map("created_at")
 
   memberships          TenantMembership[]
   customerProfile      Customer?
@@ -105,6 +107,7 @@ model User {
   defaultAgentForTenants Tenant[] @relation("TenantDefaultAgent")
   notifications        Notification[]
   actionsLogsUpdated   ActionsLog[] @relation("ActionsLogUpdater")
+  exchangeRatesSet     ExchangeRateHistory[] @relation("ExchangeRateSetter")
 
   @@map("users")
 }
@@ -122,22 +125,33 @@ model TenantMembership {
 }
 
 model Customer {
-  id                  String  @id @default(uuid())
-  tenantId            String  @map("tenant_id")
-  userId              String? @unique @map("user_id")
-  phone               String
-  name                String
-  portalAccessToken   String? @unique @map("portal_access_token")
-  messengerPsid       String? @map("messenger_psid")
+  id                   String  @id @default(uuid())
+  tenantId             String  @map("tenant_id")
+  userId               String? @unique @map("user_id")
+  name                 String
+  /// AES-GCM ciphertext (phone, email, Facebook URL, notes, Messenger PSID).
+  phone                String
+  phoneHash            String  @default("") @map("phone_hash")
+  email                String? @map("email")
+  emailHash            String  @default("") @map("email_hash")
+  facebookProfileUrl   String? @map("facebook_profile_url")
+  notes                String?
+  portalAccessToken    String? @unique @map("portal_access_token")
+  messengerPsid        String? @map("messenger_psid")
+  messengerPsidHash    String? @map("messenger_psid_hash")
   messengerDisplayName String? @map("messenger_display_name")
-  trustedBuyBeforePay Boolean @default(false) @map("trusted_buy_before_pay")
-  notes               String?
+  trustedBuyBeforePay  Boolean @default(false) @map("trusted_buy_before_pay")
+  createdAt            DateTime @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
   orders Order[]
 
-  @@unique([tenantId, messengerPsid])
+  @@unique([tenantId, messengerPsidHash])
+  @@index([tenantId, phoneHash])
+  @@index([tenantId, emailHash])
+  @@index([tenantId, name])
+  @@index([tenantId, createdAt])
   @@map("customers")
 }
 
@@ -226,12 +240,27 @@ model OrderItem {
   shopeeShopId   String?     @map("shopee_shop_id")
   shopeeItemId   String?     @map("shopee_item_id")
   itemCategoryId String?    @map("item_category_id")
+  customerNote   String?    @map("customer_note")
 
   order        Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   catalogItem  CatalogItem?  @relation(fields: [catalogItemId], references: [id])
   itemCategory ItemCategory? @relation(fields: [itemCategoryId], references: [id], onDelete: SetNull)
 
   @@map("order_items")
+}
+
+model ExchangeRateHistory {
+  id            String   @id @default(uuid())
+  tenantId      String   @map("tenant_id")
+  rate          Decimal  @db.Decimal(12, 4)
+  effectiveAt   DateTime @default(now()) @map("effective_at")
+  setByUserId   String   @map("set_by_user_id")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  setBy  User   @relation("ExchangeRateSetter", fields: [setByUserId], references: [id])
+
+  @@index([tenantId, effectiveAt])
+  @@map("exchange_rate_history")
 }
 
 model ProductInvoice {

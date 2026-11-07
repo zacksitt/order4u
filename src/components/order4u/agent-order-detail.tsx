@@ -426,6 +426,9 @@ function ItemRow({
       </span>
       <div className="min-w-0 flex-1 basis-60">
         <p className="text-sm font-semibold">{item.title}</p>
+        {item.customerNote ? (
+          <p className="mt-0.5 text-[13px] text-muted-foreground">{item.customerNote}</p>
+        ) : null}
         <p className="mt-0.5 text-[13px] text-muted-foreground">
           {item.qty} × {fmtThb(item.price)}
           {item.shippingFeeThb
