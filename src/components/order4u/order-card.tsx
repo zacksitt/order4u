@@ -51,7 +51,9 @@ export function OrderCard({ order, href, audience = "staff" }: OrderCardProps) {
               <p className="text-sm text-muted-foreground mt-1 truncate">
                 {forCustomer
                   ? `${order.items.length} item${order.items.length !== 1 ? "s" : ""}`
-                  : `${order.customerName} · ${order.customerPhone}`}
+                  : [order.customerName, order.customerPhone !== "—" ? order.customerPhone : null]
+                      .filter(Boolean)
+                      .join(" · ")}
               </p>
             </div>
           </div>

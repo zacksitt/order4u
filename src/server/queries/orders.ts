@@ -17,18 +17,21 @@ const CARGO_QUEUE_STATUSES: FulfillmentStatus[] = [
   "delivered",
 ];
 
-export async function listAgentOrders(opts?: { customerId?: string }): Promise<Order[]> {
+export async function listAgentOrders(opts?: { customerId?: string; code?: string }): Promise<Order[]> {
   const session = await requireAgent();
   const customerId = zUuid.safeParse(opts?.customerId ?? "").success ? opts!.customerId : undefined;
+  const code = opts?.code?.trim();
+  const narrowed = Boolean(customerId || code);
   const rows = await prisma.order.findMany({
     where: {
       tenantId: session.tenantId,
       assignedAgentId: session.userId,
       ...(customerId ? { customerId } : {}),
+      ...(code ? { code: { contains: code, mode: "insensitive" } } : {}),
     },
     include: orderDetailInclude,
     orderBy: { updatedAt: "desc" },
-    ...(customerId ? {} : { take: 200 }),
+    ...(narrowed ? {} : { take: 200 }),
   });
   return rows.map(mapOrder);
 }

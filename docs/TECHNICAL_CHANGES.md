@@ -57,7 +57,7 @@ Working notes for the current slice (7 Nov 2026). Parked work stays in [`BACKLOG
 | Auth / first password | `src/auth.ts`, `src/auth.config.ts`, `src/middleware.ts`, `src/server/actions/change-password.ts` |
 | New order customer pick | `src/components/order4u/new-order-form.tsx`, `customer-search-combobox.tsx` |
 | Customer directory | `src/app/agent/customers/page.tsx`, `customers-directory.tsx`, `src/server/queries/customers.ts` |
-| Orders customer filter | `src/app/agent/orders/page.tsx`, `orders-customer-filter.tsx` |
+| Orders filter | `src/app/agent/orders/page.tsx`, `orders-filter-dialog.tsx` |
 | FX history write | `src/server/actions/settings.ts` |
 | Reports | `src/app/agent/reports/page.tsx` |
 | PWA button | `src/components/order4u/install-app-button.tsx` |
