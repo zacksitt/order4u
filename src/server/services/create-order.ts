@@ -51,6 +51,10 @@ export async function createOrderForTenant(input: {
       lineCatalogIds.push(line.catalogItemId);
       continue;
     }
+    if (!line.url.trim()) {
+      lineCatalogIds.push(null);
+      continue;
+    }
     const existing = await prisma.catalogItem.findFirst({
       where: { tenantId: input.tenantId, sourceUrl: line.url },
       select: { id: true },

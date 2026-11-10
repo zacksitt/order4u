@@ -150,7 +150,7 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
     setError(null);
     const filledLines = lines.filter((l) => l.title.trim() || l.url.trim() || l.price > 0);
     if (filledLines.length === 0) {
-      setError("Add at least one item with a product URL, name, and price.");
+      setError("Add at least one item with a name and price.");
       return;
     }
 
@@ -327,9 +327,7 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
                 </div>
               )}
               <div className="space-y-2">
-                <FieldLabel htmlFor={`url-${i}`} required>
-                  Product URL (Shopee / Lazada)
-                </FieldLabel>
+                <FieldLabel htmlFor={`url-${i}`}>Product URL (Shopee / Lazada)</FieldLabel>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <Input
                     id={`url-${i}`}

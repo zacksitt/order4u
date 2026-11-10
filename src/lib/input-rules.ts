@@ -248,7 +248,7 @@ export const zCustomerNote = preprocessString(
 
 export const orderLineInputSchema = z.object({
   title: zItemTitle,
-  url: zHttpUrl,
+  url: zOptionalHttpUrl,
   qty: zQty,
   price: zThbPositive,
   shippingFeeThb: zThbNonNeg.optional(),

@@ -83,7 +83,7 @@ export function PublicOrderForm({
     setError(null);
     const filledLines = lines.filter((l) => l.title.trim() || l.url.trim() || l.price > 0);
     if (filledLines.length === 0) {
-      setError("Add at least one item with a product URL, name, and price.");
+      setError("Add at least one item with a name and price.");
       return;
     }
     const checked = publicCreateOrderSchema.safeParse({
@@ -168,7 +168,7 @@ export function PublicOrderForm({
                 </select>
               </div>
               <div className="space-y-2">
-                <FieldLabel required>Product URL (Shopee / Lazada)</FieldLabel>
+                <FieldLabel>Product URL (Shopee / Lazada)</FieldLabel>
                 <Input
                   value={line.url}
                   onChange={(e) => updateLine(i, { url: e.target.value })}

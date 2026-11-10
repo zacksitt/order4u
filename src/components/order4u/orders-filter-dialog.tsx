@@ -105,6 +105,7 @@ export function OrdersFilterDialog({ view, customer, code }: OrdersFilterDialogP
           title="Filter orders"
           description="Find by customer or order code. Status chips stay on the list."
           onClose={() => setOpen(false)}
+          className="mb-[calc(7.25rem+env(safe-area-inset-bottom))] max-h-[calc(100dvh-8.25rem-env(safe-area-inset-bottom))] md:mb-0 md:max-h-[92vh]"
         >
           <div className="space-y-4">
             <div className="space-y-2">
