@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/order4u/page-header";
+import { PagedOrderList } from "@/components/order4u/paged-order-list";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +13,10 @@ import { cn } from "@/lib/utils";
 import { listCargoQueueOrders } from "@/server/queries/orders";
 
 type PageProps = { searchParams: Promise<{ view?: string }> };
+
+function cargoOrdersHref(view?: string) {
+  return view && view !== "all" ? `/cargo/orders?view=${view}` : "/cargo/orders";
+}
 
 export default async function CargoOrdersPage({ searchParams }: PageProps) {
   const { view } = await searchParams;
@@ -39,7 +44,7 @@ export default async function CargoOrdersPage({ searchParams }: PageProps) {
               .map(({ filter, count }) => (
                 <Link
                   key={filter.key}
-                  href={filter.key === "all" ? "/cargo/orders" : `/cargo/orders?view=${filter.key}`}
+                  href={cargoOrdersHref(filter.key)}
                   aria-current={filter.key === active.key ? "page" : undefined}
                   className={cn(
                     "rounded-full border border-border px-3 py-1 text-xs font-medium",
@@ -52,17 +57,21 @@ export default async function CargoOrdersPage({ searchParams }: PageProps) {
                 </Link>
               ))}
           </nav>
-          <div className="space-y-3">
-            {filtered.length === 0 ? (
+          <PagedOrderList
+            key={active.key}
+            className="space-y-3"
+            empty={
               <p className="py-8 text-center text-sm text-muted-foreground">
                 {current.length === 0
                   ? "No orders assigned to you yet. The agent will hand orders to you."
                   : `No orders in “${active.label}”.`}
               </p>
-            ) : (
-              filtered.map((order) => <CargoOrderRow key={order.id} order={order} />)
-            )}
-          </div>
+            }
+          >
+            {filtered.map((order) => (
+              <CargoOrderRow key={order.id} order={order} />
+            ))}
+          </PagedOrderList>
         </TabsContent>
 
         <TabsContent value="history" className="space-y-3">

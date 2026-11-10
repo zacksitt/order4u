@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { BrandLogo } from "@/components/order4u/brand-logo";
 import { InstallAppButton } from "@/components/order4u/install-app-button";
 import { LoginForm } from "@/components/order4u/login-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +29,9 @@ export default async function LoginPage({ searchParams }: PageProps) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
       <div className="mb-8 text-center">
-        <h1 className="mt-2 text-3xl font-bold text-primary">Order4U</h1>
+        <h1>
+          <BrandLogo className="mx-auto h-28" />
+        </h1>
       </div>
 
       <Card className="w-full max-w-md">

@@ -1,3 +1,5 @@
+export const CURRENT_ORDER_PAGE_SIZE = 10;
+
 export function agentOrdersHref(params: { view?: string; customer?: string; code?: string }) {
   const search = new URLSearchParams();
   if (params.view && params.view !== "all") search.set("view", params.view);

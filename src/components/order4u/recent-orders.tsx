@@ -6,8 +6,10 @@ import { OrderCard } from "@/components/order4u/order-card";
 import type { Order } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+const RECENT_LIMIT = 10;
+
 const FILTERS = [
-  { key: "all", label: "All" },
+  { key: "recent", label: "Recent" },
   { key: "awaiting", label: "Awaiting payment" },
   { key: "buying", label: "Buying" },
   { key: "cargo", label: "At cargo" },
@@ -21,7 +23,7 @@ function atCargo(fulfillment: Order["fulfillment"]): boolean {
 }
 
 function matches(order: Order, filter: FilterKey): boolean {
-  if (filter === "all") return true;
+  if (filter === "recent") return true;
   if (filter === "awaiting") return order.productPaymentStatus !== "paid";
   if (filter === "buying") {
     return (
@@ -34,14 +36,17 @@ function matches(order: Order, filter: FilterKey): boolean {
 }
 
 export function RecentOrders({ orders }: { orders: Order[] }) {
-  const [filter, setFilter] = useState<FilterKey>("all");
-  const visible = orders.filter((order) => matches(order, filter));
+  const [filter, setFilter] = useState<FilterKey>("recent");
+  const visible = orders.filter((order) => matches(order, filter)).slice(0, RECENT_LIMIT);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filter orders">
         {FILTERS.map((item) => {
-          const count = orders.filter((order) => matches(order, item.key)).length;
+          const count = Math.min(
+            RECENT_LIMIT,
+            orders.filter((order) => matches(order, item.key)).length,
+          );
           const on = filter === item.key;
           return (
             <button

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { BrandLogo } from "@/components/order4u/brand-logo";
 import { logout } from "@/server/actions/auth";
 
 export function CustomerNav() {
@@ -14,8 +15,8 @@ export function CustomerNav() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
       <div className="mx-auto flex max-w-[820px] items-center justify-between gap-3 px-4 py-3 md:px-8">
-        <Link href="/customer/orders" className="font-bold text-primary shrink-0">
-          Order4U
+        <Link href="/customer/orders" className="shrink-0">
+          <BrandLogo className="h-10" />
         </Link>
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">
           {!mustChange && (

@@ -1,4 +1,5 @@
 import { AgentBottomNav } from "@/components/order4u/agent-bottom-nav";
+import { BrandLogo } from "@/components/order4u/brand-logo";
 import { AgentSidebar } from "@/components/order4u/agent-sidebar";
 import { NotificationBell } from "@/components/order4u/notification-bell";
 import { InstallAppButton } from "@/components/order4u/install-app-button";
@@ -16,9 +17,9 @@ export default async function AgentLayout({ children }: LayoutProps<"/agent">) {
       <AgentSidebar shopName={shopName} notifications={feed} />
       <div className="flex min-h-screen flex-1 flex-col pb-24 md:pb-0">
         <div className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary">Order4U</p>
-            <p className="text-sm text-muted-foreground">{shopName}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            <BrandLogo className="h-10" />
+            <p className="truncate text-sm text-muted-foreground">{shopName}</p>
           </div>
           <div className="flex items-center gap-1">
             <InstallAppButton className="px-2" />

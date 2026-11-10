@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { BrandLogo } from "@/components/order4u/brand-logo";
 import { NotificationBell } from "@/components/order4u/notification-bell";
 import { InstallAppButton } from "@/components/order4u/install-app-button";
 import { agentFabLink, agentSidebarLinks, isAgentNavActive } from "@/lib/agent-nav-links";
@@ -23,9 +24,9 @@ export function AgentSidebar({
   return (
     <aside className="hidden md:flex md:w-56 md:flex-col md:border-r md:border-border md:bg-card md:shrink-0">
       <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-5">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-primary">Order4U</p>
-          <p className="mt-1 text-sm font-medium">{shopName}</p>
+        <div className="min-w-0">
+          <BrandLogo className="h-16" />
+          <p className="mt-2 text-sm font-medium">{shopName}</p>
         </div>
         <NotificationBell
           items={notifications.items}

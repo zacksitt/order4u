@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { OrderCard } from "@/components/order4u/order-card";
 import { OrdersFilterDialog } from "@/components/order4u/orders-filter-dialog";
+import { PagedOrderList } from "@/components/order4u/paged-order-list";
 import { PageHeader } from "@/components/order4u/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -39,10 +40,10 @@ export default async function AgentOrdersPage({ searchParams }: PageProps) {
   return (
     <>
       <PageHeader
+        className="flex-row items-center justify-between"
         title="Orders"
-        description="Open an order to confirm payment, update items, and give it to cargo."
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <OrdersFilterDialog view={tabView} customer={selected} code={code} />
             <Button asChild size="sm" className="hidden md:inline-flex">
               <Link href="/agent/orders/new">New order</Link>
@@ -110,21 +111,23 @@ export default async function AgentOrdersPage({ searchParams }: PageProps) {
                 </Link>
               ))}
           </nav>
-          <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
-            {filtered.length === 0 ? (
-              <p className="col-span-full py-8 text-center text-sm text-muted-foreground">
+          <PagedOrderList
+            key={active.key}
+            className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0"
+            empty={
+              <p className="py-8 text-center text-sm text-muted-foreground">
                 {current.length === 0
                   ? selected || code
                     ? "No current orders match this filter."
                     : "No orders yet. Tap New order to create one."
                   : `No orders in “${active.label}”.`}
               </p>
-            ) : (
-              filtered.map((order) => (
-                <OrderCard key={order.id} order={order} href={`/agent/orders/${order.id}`} />
-              ))
-            )}
-          </div>
+            }
+          >
+            {filtered.map((order) => (
+              <OrderCard key={order.id} order={order} href={`/agent/orders/${order.id}`} />
+            ))}
+          </PagedOrderList>
         </TabsContent>
 
         <TabsContent value="history" className="space-y-3">
