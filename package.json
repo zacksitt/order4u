@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "db:normalize-ids": "node scripts/migrate-ids-to-uuid.mjs",
     "db:encrypt-pii": "tsx scripts/encrypt-customer-pii.ts",
+    "db:add-shop": "tsx scripts/add-shop.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
