@@ -75,10 +75,20 @@ export async function listCargoQueueOrders(): Promise<Order[]> {
   return rows.map(mapOrder);
 }
 
+async function customerIdForSession(session: { userId: string; tenantId: string }): Promise<string | null> {
+  const customer = await prisma.customer.findFirst({
+    where: { userId: session.userId, tenantId: session.tenantId },
+    select: { id: true },
+  });
+  return customer?.id ?? null;
+}
+
 export async function listCustomerOrders(): Promise<Order[]> {
   const session = await requireCustomer();
+  const customerId = await customerIdForSession(session);
+  if (!customerId) return [];
   const rows = await prisma.order.findMany({
-    where: { tenantId: session.tenantId, createdByUserId: session.userId },
+    where: { tenantId: session.tenantId, customerId },
     include: orderDetailInclude,
     orderBy: { createdAt: "desc" },
     take: 200,
@@ -88,8 +98,10 @@ export async function listCustomerOrders(): Promise<Order[]> {
 
 export async function getCustomerOrderById(id: string): Promise<{ order: Order; shopName: string } | undefined> {
   const session = await requireCustomer();
+  const customerId = await customerIdForSession(session);
+  if (!customerId) return undefined;
   const row = await prisma.order.findFirst({
-    where: { id, tenantId: session.tenantId, createdByUserId: session.userId },
+    where: { id, tenantId: session.tenantId, customerId },
     include: { ...orderDetailInclude, tenant: { select: { name: true } } },
   });
   if (!row) return undefined;
