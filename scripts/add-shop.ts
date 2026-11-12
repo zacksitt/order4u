@@ -107,6 +107,7 @@ async function main() {
         email: agentEmail,
         passwordHash: hashSync(agentPassword, 10),
         displayName: agentName,
+        mustChangePassword: true,
       },
     });
     const cargo = await tx.user.create({
@@ -114,6 +115,7 @@ async function main() {
         email: cargoEmail,
         passwordHash: hashSync(cargoPassword, 10),
         displayName: cargoName,
+        mustChangePassword: true,
       },
     });
     const shop = await tx.tenant.create({

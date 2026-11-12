@@ -35,4 +35,4 @@ if [[ "${AUTH_URL:-}" == http://localhost* ]] && [[ "${NODE_ENV:-production}" ==
   echo "warning: AUTH_URL is still localhost — set AUTH_URL and APP_URL to your public https URL"
 fi
 
-exec node "$ROOT/node_modules/next/dist/bin/next" start -H 127.0.0.1 -p 3000
+exec node "$ROOT/node_modules/next/dist/bin/next" start -H 127.0.0.1 -p "${PORT:-3000}"

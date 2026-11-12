@@ -13,13 +13,17 @@ export default NextAuth(authConfig).auth((req) => {
   }
 
   const role = req.auth.role;
+  const changePath =
+    role === "agent"
+      ? "/agent/change-password"
+      : role === "cargo"
+        ? "/cargo/change-password"
+        : role === "customer"
+          ? "/customer/change-password"
+          : null;
 
-  if (
-    role === "customer" &&
-    req.auth.mustChangePassword &&
-    !pathname.startsWith("/customer/change-password")
-  ) {
-    return NextResponse.redirect(new URL("/customer/change-password", req.url));
+  if (req.auth.mustChangePassword && changePath && !pathname.startsWith(changePath)) {
+    return NextResponse.redirect(new URL(changePath, req.url));
   }
 
   if (pathname.startsWith("/agent") && role !== "agent") {

@@ -6,7 +6,8 @@ import { z } from "zod";
 
 import { unstable_update } from "@/auth";
 import { changePasswordSchema, firstIssueMessage } from "@/lib/input-rules";
-import { requireCustomer } from "@/server/auth/session";
+import { signedInPath } from "@/lib/signed-in-path";
+import { requireSignedIn } from "@/server/auth/session";
 import { prisma } from "@/server/db";
 
 export type ChangePasswordResult = { ok: false; error: string };
@@ -14,7 +15,7 @@ export type ChangePasswordResult = { ok: false; error: string };
 export async function changeOwnPassword(
   raw: z.infer<typeof changePasswordSchema>,
 ): Promise<ChangePasswordResult | void> {
-  const session = await requireCustomer();
+  const session = await requireSignedIn();
   const parsed = changePasswordSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: firstIssueMessage(parsed.error, "Check the form.") };
 
@@ -33,5 +34,5 @@ export async function changeOwnPassword(
   });
 
   await unstable_update({ mustChangePassword: false });
-  redirect("/customer/orders");
+  redirect(signedInPath(session.role, false));
 }

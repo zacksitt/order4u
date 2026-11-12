@@ -38,6 +38,10 @@ async function requireSession(): Promise<StaffSession> {
   };
 }
 
+export async function requireSignedIn(): Promise<StaffSession> {
+  return requireSession();
+}
+
 export async function requireAgent(): Promise<StaffSession> {
   const s = await requireSession();
   if (s.role !== "agent") redirect("/login?error=agent");

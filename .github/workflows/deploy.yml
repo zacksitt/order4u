@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
 
 jobs:
   deploy:
@@ -21,5 +22,5 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H 146.190.100.116 >> ~/.ssh/known_hosts
-          scp scripts/remote-deploy.sh root@146.190.100.116:/tmp/order4u-deploy.sh
-          ssh root@146.190.100.116 "bash /tmp/order4u-deploy.sh"
+          scp scripts/remote-deploy.sh "root@146.190.100.116:/tmp/order4u-deploy-${{ github.ref_name }}.sh"
+          ssh root@146.190.100.116 "DEPLOY_BRANCH='${{ github.ref_name }}' bash /tmp/order4u-deploy-${{ github.ref_name }}.sh"

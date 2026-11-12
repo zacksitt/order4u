@@ -5,6 +5,7 @@ import { InstallAppButton } from "@/components/order4u/install-app-button";
 import { LoginForm } from "@/components/order4u/login-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth } from "@/auth";
+import { signedInPath } from "@/lib/signed-in-path";
 
 const AREA_ERROR: Record<string, string> = {
   agent: "That page is for shop agents. Sign in with an agent account.",
@@ -17,10 +18,8 @@ type PageProps = { searchParams: Promise<{ error?: string }> };
 
 export default async function LoginPage({ searchParams }: PageProps) {
   const session = await auth();
-  if (session?.role === "agent") redirect("/agent/dashboard");
-  if (session?.role === "cargo") redirect("/cargo/orders");
-  if (session?.role === "customer") {
-    redirect(session.mustChangePassword ? "/customer/change-password" : "/customer/orders");
+  if (session?.role === "agent" || session?.role === "cargo" || session?.role === "customer") {
+    redirect(signedInPath(session.role, Boolean(session.mustChangePassword)));
   }
 
   const { error } = await searchParams;

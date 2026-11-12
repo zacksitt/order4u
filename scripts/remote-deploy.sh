@@ -2,8 +2,31 @@
 # Runs on the server over SSH. Finds or installs Node, then builds and restarts the app.
 set -uo pipefail
 
-APP_DIR=/root/app/order4u
+# main serves https://order4u.mmappdemo.space on port 3000.
+# dev serves https://order4u-test.mmappdemo.space on port 3001.
+DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
 NODE_VERSION=v22.21.0
+
+case "$DEPLOY_BRANCH" in
+  main)
+    APP_DIR=/root/app/order4u
+    PM2_NAME=order4u
+    GIT_BRANCH=main
+    APP_PORT=3000
+    PUBLIC_URL=
+    ;;
+  dev)
+    APP_DIR=/root/app/order4u_demo
+    PM2_NAME=order4u-test
+    GIT_BRANCH=dev
+    APP_PORT=3001
+    PUBLIC_URL=https://order4u-test.mmappdemo.space
+    ;;
+  *)
+    echo "unsupported branch: $DEPLOY_BRANCH" >&2
+    exit 1
+    ;;
+esac
 
 step() {
   local name="$1"
@@ -77,8 +100,38 @@ sync_repo() {
     return 1
   fi
   cd "$APP_DIR"
-  git fetch origin main
-  git reset --hard origin/main
+  git fetch origin "$GIT_BRANCH"
+  git checkout -f -B "$GIT_BRANCH" "origin/$GIT_BRANCH"
+}
+
+pin_runtime_env() {
+  local file="$1"
+  python3 - "$file" "$APP_PORT" "$PUBLIC_URL" <<'PY'
+import sys
+from pathlib import Path
+
+path, port, public_url = sys.argv[1:]
+file = Path(path)
+lines = file.read_text().splitlines() if file.exists() else []
+keys = {"PORT": port}
+if public_url:
+    keys["AUTH_URL"] = public_url
+    keys["APP_URL"] = public_url
+found = set()
+updated = []
+for line in lines:
+    key = line.split("=", 1)[0]
+    if key in keys:
+        updated.append(f"{key}={keys[key]}")
+        found.add(key)
+    else:
+        updated.append(line)
+for key, value in keys.items():
+    if key not in found:
+        updated.append(f"{key}={value}")
+file.parent.mkdir(parents=True, exist_ok=True)
+file.write_text("\n".join(updated) + "\n")
+PY
 }
 
 ensure_pm2() {
@@ -90,10 +143,12 @@ ensure_pm2() {
 restart_app() {
   cd "$APP_DIR"
   chmod +x scripts/start-production.sh
-  if pm2 describe order4u >/dev/null 2>&1; then
-    pm2 restart order4u --update-env
+  pin_runtime_env "$APP_DIR/.env"
+  pin_runtime_env "$APP_DIR/.env.local"
+  if pm2 describe "$PM2_NAME" >/dev/null 2>&1; then
+    pm2 restart "$PM2_NAME" --update-env
   else
-    pm2 start deploy/pm2/ecosystem.config.cjs
+    PM2_APP_NAME="$PM2_NAME" pm2 start deploy/pm2/ecosystem.config.cjs
     pm2 save
   fi
 }

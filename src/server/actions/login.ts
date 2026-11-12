@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { signIn } from "@/auth";
 import { firstIssueMessage, loginSchema } from "@/lib/input-rules";
+import { signedInPath } from "@/lib/signed-in-path";
 import { prisma } from "@/server/db";
 import { compareSync } from "bcryptjs";
 
@@ -30,14 +31,7 @@ export async function loginWithCredentials(
     return { ok: false, error: "No access for this account." };
   }
 
-  const redirectTo =
-    membership.role === "cargo"
-      ? "/cargo/orders"
-      : membership.role === "customer"
-        ? user.mustChangePassword
-          ? "/customer/change-password"
-          : "/customer/orders"
-        : "/agent/dashboard";
+  const redirectTo = signedInPath(membership.role, user.mustChangePassword);
 
   try {
     await signIn("credentials", {
