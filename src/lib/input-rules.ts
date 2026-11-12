@@ -273,6 +273,8 @@ export const customerCreateOrderSchema = z.object({
 export const agentCreateOrderSchema = customerCreateOrderSchema.extend({
   thbShipping: zThbNonNeg,
   serviceFeePercent: zPercent,
+  thbMmkRate: zRate.optional(),
+  discountThb: zThbNonNeg.optional(),
   customerId: z.preprocess(
     (value) => (value === "" || value === null ? undefined : value),
     zUuid.optional(),
@@ -349,6 +351,21 @@ export const tenantSettingsSchema = z.object({
 export const itemCategorySchema = z.object({
   name: zCategoryName,
   cargoPriceThb: zThbPositive,
+});
+
+export const unpaidQuoteLineSchema = z.object({
+  id: z.preprocess((value) => (value === "" || value === null ? undefined : value), zUuid.optional()),
+  title: zItemTitle,
+  qty: zQty,
+  price: zThbPositive,
+  shippingFeeThb: zThbNonNeg,
+});
+
+export const updateUnpaidQuoteSchema = z.object({
+  orderId: zUuid,
+  rate: zRate,
+  discountThb: zThbNonNeg,
+  lines: z.array(unpaidQuoteLineSchema).min(1, "Add at least one item."),
 });
 
 export const cargoInvoiceIssueSchema = z.object({

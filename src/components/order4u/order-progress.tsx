@@ -21,6 +21,16 @@ function progressIndex(order: Order): number {
 
 export function OrderProgress({ order }: { order: Order }) {
   const [preview, setPreview] = useState(false);
+  if (order.fulfillment === "cancelled") {
+    return (
+      <section
+        aria-label="Order progress"
+        className="rounded-[14px] border border-border bg-card px-5 py-4 text-sm text-muted-foreground"
+      >
+        This order was cancelled.
+      </section>
+    );
+  }
   const paid = isProductPaid(order.productPaymentStatus);
   const current = progressIndex(order);
   const timeline = buildCustomerTimeline(order).map((step) => (paid ? step : { ...step, state: 0 as const }));

@@ -28,21 +28,29 @@ export async function createOrderForTenant(input: {
   createdByUserId?: string;
   thbShipping: number;
   serviceFeePercent: number;
+  /** Shop default when omitted. */
+  rate?: number;
+  discountThb?: number;
   lines: OrderLineInput[];
 }): Promise<{ orderId: string; publicAccessToken: string; code: string }> {
   const tenant = await prisma.tenant.findUniqueOrThrow({ where: { id: input.tenantId } });
-  const rate = Number(tenant.defaultThbMmkRate);
+  const rate = input.rate ?? Number(tenant.defaultThbMmkRate);
+  const discountThb = input.discountThb ?? 0;
 
   const thbSubtotal = input.lines.reduce((s, l) => s + l.price * l.qty, 0);
   const lineShipping = input.lines.reduce((s, l) => s + (l.shippingFeeThb ?? 0), 0);
   const thbShipping = input.lines.some((l) => l.shippingFeeThb !== undefined)
     ? lineShipping
     : input.thbShipping;
+  if (discountThb > thbSubtotal) {
+    throw new Error("Discount cannot be more than the item total.");
+  }
   const snapshot = buildProductInvoiceSnapshot({
     thbSubtotal,
     thbShipping,
     rate,
     serviceFeePercent: input.serviceFeePercent,
+    discountThb,
   });
 
   const lineCatalogIds: (string | null)[] = [];
@@ -51,23 +59,22 @@ export async function createOrderForTenant(input: {
       lineCatalogIds.push(line.catalogItemId);
       continue;
     }
-    if (!line.url.trim()) {
-      lineCatalogIds.push(null);
-      continue;
-    }
-    const existing = await prisma.catalogItem.findFirst({
-      where: { tenantId: input.tenantId, sourceUrl: line.url },
-      select: { id: true },
-    });
-    if (existing) {
-      lineCatalogIds.push(existing.id);
-      continue;
+    const url = line.url.trim();
+    if (url) {
+      const existing = await prisma.catalogItem.findFirst({
+        where: { tenantId: input.tenantId, sourceUrl: url },
+        select: { id: true },
+      });
+      if (existing) {
+        lineCatalogIds.push(existing.id);
+        continue;
+      }
     }
     const catalogRow = await prisma.catalogItem.create({
       data: {
         tenantId: input.tenantId,
         name: line.title,
-        sourceUrl: line.url,
+        sourceUrl: url || null,
         price: line.price,
       },
     });

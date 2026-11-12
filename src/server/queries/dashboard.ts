@@ -73,8 +73,10 @@ export async function getAgentDashboardStats(): Promise<AgentDashboard> {
     atCargoPipeline,
     shipping,
   ] = await Promise.all([
-    prisma.order.count({ where: { ...base, fulfillmentStatus: { not: "delivered" } } }),
-    prisma.order.count({ where: { ...base, productPaymentStatus: "awaiting" } }),
+    prisma.order.count({ where: { ...base, fulfillmentStatus: { notIn: ["delivered", "cancelled"] } } }),
+    prisma.order.count({
+      where: { ...base, productPaymentStatus: "awaiting", fulfillmentStatus: { not: "cancelled" } },
+    }),
     prisma.order.count({ where: { ...base, fulfillmentStatus: { in: [...AT_CARGO_KPI] } } }),
     prisma.order.count({
       where: { ...base, fulfillmentStatus: "delivered", updatedAt: { gte: monthStart } },

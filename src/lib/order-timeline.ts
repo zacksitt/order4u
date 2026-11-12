@@ -21,6 +21,7 @@ const FULFILLMENT_RANK: Record<FulfillmentStatus, number> = {
   cargo_invoiced: 6,
   in_transit: 7,
   delivered: 8,
+  cancelled: 0,
 };
 
 function stepState(threshold: number, rank: number): 0 | 1 | 2 {
@@ -33,6 +34,16 @@ type TimelineOrder = Pick<Order, "productPaymentStatus" | "cargoPaymentStatus" |
 
 /** Customer-facing journey (after product payment). */
 export function buildCustomerTimeline(order: TimelineOrder): TimelineStep[] {
+  if (order.fulfillment === "cancelled") {
+    return [
+      {
+        id: "cancelled",
+        title: "Cancelled",
+        description: "The shop cancelled this order before payment.",
+        state: 1,
+      },
+    ];
+  }
   let rank = FULFILLMENT_RANK[order.fulfillment];
   const allAtAgent = order.items.every(
     (i) => i.status === "arrived_at_agent" || i.status === "cancelled",

@@ -91,7 +91,9 @@ function ItemStatusRow({
 }) {
   const router = useRouter();
   const [status, setStatus] = useState(item.status);
-  const [actualPrice, setActualPrice] = useState(item.actualPrice?.toString() ?? "");
+  const [actualPrice, setActualPrice] = useState(
+    item.actualPrice != null ? String(item.actualPrice) : String(item.price),
+  );
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 

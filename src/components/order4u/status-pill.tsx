@@ -19,7 +19,8 @@ export function StatusPill({
   const label = orderSummaryLabel(productPaymentStatus, fulfillment, cargoPaymentStatus);
   let variant: "warning" | "default" | "success" | "secondary" | "muted" = "secondary";
 
-  if (!isProductPaid(productPaymentStatus)) variant = "warning";
+  if (fulfillment === "cancelled") variant = "muted";
+  else if (!isProductPaid(productPaymentStatus)) variant = "warning";
   else if (fulfillment === "delivered") variant = "success";
   else if (cargoPaymentStatus && isCargoPaid(cargoPaymentStatus)) variant = "success";
   else if (fulfillment === "cargo_invoiced" && cargoPaymentStatus === "awaiting") variant = "warning";

@@ -23,7 +23,7 @@ export default async function AgentOrdersPage({ searchParams }: PageProps) {
     listAgentOrders({ customerId, code: code || undefined }),
     customerId ? getAgentCustomerById(customerId) : Promise.resolve(null),
   ]);
-  const current = orders.filter((o) => o.fulfillment !== "delivered");
+  const current = orders.filter((o) => o.fulfillment !== "delivered" && o.fulfillment !== "cancelled");
   const history = orders.filter((o) => o.fulfillment === "delivered");
   const isHistory = view === "history";
   const active = findOrderFilter(isHistory ? "all" : view);

@@ -6,6 +6,7 @@ export function buildProductInvoiceSnapshot(input: {
   thbShipping: number;
   rate: number;
   serviceFeePercent: number;
+  discountThb?: number;
 }): InvoiceSnapshot {
   return buildProductInvoice(input);
 }
@@ -14,6 +15,7 @@ export function productInvoiceToDb(snapshot: InvoiceSnapshot) {
   return {
     thbSubtotal: snapshot.thbSubtotal,
     thbShipping: snapshot.thbShipping,
+    discountThb: snapshot.discountThb,
     serviceFeePercent: snapshot.serviceFeePercent,
     serviceFeeThb: snapshot.serviceFeeThb,
     mmkServiceFee: snapshot.serviceFeeMmk,

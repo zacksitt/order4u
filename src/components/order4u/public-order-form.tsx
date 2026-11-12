@@ -25,7 +25,7 @@ import { submitPublicOrder } from "@/server/actions/public-orders";
 type DraftLine = {
   title: string;
   url: string;
-  qty: number;
+  qty: number | "";
   price: number;
   marketplace: "shopee" | "lazada";
   customerNote: string;
@@ -192,7 +192,15 @@ export function PublicOrderForm({
                     min={1}
                     max={MAX_QTY}
                     value={line.qty}
-                    onChange={(e) => updateLine(i, { qty: Number(e.target.value) || 1 })}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === "") {
+                        updateLine(i, { qty: "" });
+                        return;
+                      }
+                      const next = Number(raw);
+                      updateLine(i, { qty: Number.isFinite(next) ? next : "" });
+                    }}
                   />
                 </div>
                 <div className="min-w-0 space-y-2">

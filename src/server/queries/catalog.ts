@@ -6,14 +6,14 @@ import { prisma } from "@/server/db";
 function mapCatalogItem(row: {
   id: string;
   name: string;
-  sourceUrl: string;
+  sourceUrl: string | null;
   price: { toString(): string };
   description: string | null;
 }): CatalogItem {
   return {
     id: row.id,
     name: row.name,
-    url: row.sourceUrl,
+    url: row.sourceUrl ?? "",
     price: Number(row.price),
     description: row.description ?? undefined,
   };

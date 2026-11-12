@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ItemStatus } from "@/lib/types";
 
-import { agentCreateOrderSchema, firstIssueMessage, zThbPositive, zUuid } from "@/lib/input-rules";
+import { agentCreateOrderSchema, firstIssueMessage, updateUnpaidQuoteSchema, zThbPositive, zUuid } from "@/lib/input-rules";
 import { canHandOrderToCargo } from "@/lib/order-rules";
 import { requireAgent } from "@/server/auth/session";
 import { prisma } from "@/server/db";
@@ -12,6 +12,7 @@ import { mapOrder, orderDetailInclude } from "@/server/mappers/order";
 import { appendAction } from "@/server/services/actions-log";
 import { createAgentCustomerRecord } from "@/server/services/create-customer-login";
 import { createOrderForTenant } from "@/server/services/create-order";
+import { buildProductInvoiceSnapshot, productInvoiceToDb } from "@/server/services/invoices";
 import { notifyUser } from "@/server/services/notifications";
 
 const createOrderSchema = agentCreateOrderSchema;
@@ -23,7 +24,12 @@ export async function createOrder(raw: z.infer<typeof createOrderSchema>): Promi
   const parsed = createOrderSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: firstIssueMessage(parsed.error, "Invalid order data.") };
 
-  const { customerName, customerPhone, customerId, thbShipping, serviceFeePercent, lines } = parsed.data;
+  const { customerName, customerPhone, customerId, thbShipping, serviceFeePercent, thbMmkRate, discountThb, lines } =
+    parsed.data;
+  const goodsTotal = lines.reduce((sum, line) => sum + line.price * line.qty, 0);
+  if ((discountThb ?? 0) > goodsTotal) {
+    return { ok: false, error: "Discount cannot be more than the item total." };
+  }
 
   let resolvedCustomerId = customerId;
   if (resolvedCustomerId) {
@@ -50,6 +56,8 @@ export async function createOrder(raw: z.infer<typeof createOrderSchema>): Promi
     customerId: resolvedCustomerId,
     thbShipping,
     serviceFeePercent,
+    rate: thbMmkRate,
+    discountThb,
     lines,
   });
 
@@ -244,5 +252,141 @@ export async function handOrderToCargo(input: {
   revalidatePath("/agent/orders");
   revalidatePath("/cargo/orders");
   revalidatePath("/cargo", "layout");
+  return { ok: true };
+}
+
+export async function updateUnpaidOrderQuote(raw: unknown): Promise<ActionResult> {
+  const session = await requireAgent();
+  const parsed = updateUnpaidQuoteSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: firstIssueMessage(parsed.error, "Check the quote and try again.") };
+
+  const order = await prisma.order.findFirst({
+    where: { id: parsed.data.orderId, tenantId: session.tenantId, assignedAgentId: session.userId },
+    include: { items: true, productInvoice: true },
+  });
+  if (!order || !order.productInvoice) return { ok: false, error: "Order not found." };
+  if (order.productPaymentStatus !== "awaiting" || order.fulfillmentStatus === "cancelled") {
+    return { ok: false, error: "This quote is locked." };
+  }
+
+  const known = new Set(order.items.map((item) => item.id));
+  const seen = new Set<string>();
+  for (const line of parsed.data.lines) {
+    if (!line.id) continue;
+    if (!known.has(line.id) || seen.has(line.id)) {
+      return { ok: false, error: "Quote items do not match this order." };
+    }
+    seen.add(line.id);
+  }
+
+  const thbSubtotal = parsed.data.lines.reduce((sum, line) => sum + line.price * line.qty, 0);
+  if (parsed.data.discountThb > thbSubtotal) {
+    return { ok: false, error: "Discount cannot be more than the item total." };
+  }
+  const thbShipping = parsed.data.lines.reduce((sum, line) => sum + line.shippingFeeThb, 0);
+  const snapshot = buildProductInvoiceSnapshot({
+    thbSubtotal,
+    thbShipping,
+    rate: parsed.data.rate,
+    discountThb: parsed.data.discountThb,
+    serviceFeePercent: Number(order.productInvoice.serviceFeePercent),
+  });
+
+  const removedIds = order.items.filter((item) => !seen.has(item.id)).map((item) => item.id);
+  let sortOrder = order.items.reduce((max, item) => Math.max(max, item.sortOrder), -1);
+
+  await prisma.$transaction(async (tx) => {
+    if (removedIds.length > 0) {
+      await tx.orderItem.deleteMany({ where: { id: { in: removedIds }, orderId: order.id } });
+    }
+    for (const line of parsed.data.lines) {
+      if (line.id) {
+        await tx.orderItem.update({
+          where: { id: line.id },
+          data: {
+            title: line.title,
+            qty: line.qty,
+            price: line.price,
+            shippingFeeThb: line.shippingFeeThb,
+          },
+        });
+        continue;
+      }
+      sortOrder += 1;
+      const catalog = await tx.catalogItem.create({
+        data: {
+          tenantId: session.tenantId,
+          name: line.title,
+          sourceUrl: null,
+          price: line.price,
+        },
+      });
+      await tx.orderItem.create({
+        data: {
+          orderId: order.id,
+          catalogItemId: catalog.id,
+          sortOrder,
+          title: line.title,
+          sourceUrl: "",
+          qty: line.qty,
+          price: line.price,
+          shippingFeeThb: line.shippingFeeThb,
+        },
+      });
+    }
+    await tx.productInvoice.update({
+      where: { orderId: order.id },
+      data: productInvoiceToDb(snapshot),
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: order.id,
+      userId: session.userId,
+      action: "quote_updated",
+      detail: `rate ${parsed.data.rate} discount ${parsed.data.discountThb}`,
+    });
+  });
+
+  revalidatePath(`/agent/orders/${order.id}`);
+  revalidatePath("/agent/orders");
+  revalidatePath("/agent/dashboard");
+  revalidatePath("/customer/orders");
+  return { ok: true };
+}
+
+export async function cancelOrder(orderId: string): Promise<ActionResult> {
+  const id = zUuid.safeParse(orderId);
+  if (!id.success) return { ok: false, error: "Invalid order." };
+  const session = await requireAgent();
+  const order = await prisma.order.findFirst({
+    where: { id: id.data, tenantId: session.tenantId, assignedAgentId: session.userId },
+  });
+  if (!order) return { ok: false, error: "Order not found." };
+  if (order.productPaymentStatus !== "awaiting" || order.fulfillmentStatus === "cancelled") {
+    return { ok: false, error: "This order cannot be cancelled." };
+  }
+  if (order.fulfillmentStatus !== "collecting" && order.fulfillmentStatus !== "ready_for_cargo") {
+    return { ok: false, error: "This order cannot be cancelled." };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: order.id },
+      data: { fulfillmentStatus: "cancelled" },
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: order.id,
+      userId: session.userId,
+      action: "order_cancelled",
+    });
+  });
+
+  revalidatePath(`/agent/orders/${order.id}`);
+  revalidatePath("/agent/orders");
+  revalidatePath("/agent/dashboard");
+  revalidatePath("/customer/orders");
   return { ok: true };
 }

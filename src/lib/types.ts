@@ -15,7 +15,8 @@ export type FulfillmentStatus =
   | "cargo_check_exception"
   | "cargo_invoiced"
   | "in_transit"
-  | "delivered";
+  | "delivered"
+  | "cancelled";
 
 /** Product invoice payment — stored on `orders.product_payment_status`. */
 export type ProductPaymentStatus = "awaiting" | "paid";
@@ -31,7 +32,9 @@ export type InvoiceSnapshot = {
   thbShipping: number;
   mmkTotal: number;
   rate: number;
-  /** Agent fee % of THB total (goods + TH shipping), locked at invoice issue. */
+  /** THB taken off the goods subtotal before shipping and the supplier fee. */
+  discountThb: number;
+  /** Shop fee % of (goods − discount + TH shipping), locked at invoice issue. */
   serviceFeePercent: number;
   /** Fee in THB from percent (informational on invoice). */
   serviceFeeThb: number;

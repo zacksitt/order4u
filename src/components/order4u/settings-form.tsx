@@ -67,10 +67,10 @@ export function SettingsForm({ initial }: SettingsFormProps) {
           value={thbMmkRate}
           onChange={(e) => setThbMmkRate(e.target.value)}
         />
-        <p className="text-xs text-muted-foreground">Locked onto each new invoice. Existing invoices keep their rate.</p>
+        <p className="text-xs text-muted-foreground">Default for new orders. An unpaid order can use a different rate.</p>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="fee-percent">Default service fee (% of THB total)</Label>
+        <Label htmlFor="fee-percent">Default supplier fee (% of THB total)</Label>
         <Input
           id="fee-percent"
           type="number"

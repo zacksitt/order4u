@@ -10,7 +10,7 @@ export async function getCustomerByPortalToken(portalToken: string) {
 
 export async function listOrdersForCustomerPortal(customerId: string, tenantId: string) {
   const rows = await prisma.order.findMany({
-    where: { customerId, tenantId },
+    where: { customerId, tenantId, fulfillmentStatus: { not: "cancelled" } },
     orderBy: { createdAt: "desc" },
     include: orderDetailInclude,
   });

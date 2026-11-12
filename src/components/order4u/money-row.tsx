@@ -48,9 +48,10 @@ export function InvoiceBlock({
   hideShipping?: boolean;
 }) {
   const thbTotal = snapshot.thbSubtotal + snapshot.thbShipping;
+  const discountThb = "discountThb" in snapshot ? (snapshot.discountThb ?? 0) : 0;
   const feePercent = snapshot.serviceFeePercent ?? 0;
   const feeThb = snapshot.serviceFeeThb ?? 0;
-  const feeLabel = feePercent > 0 ? `Service fee (${feePercent}%)` : "Service fee";
+  const feeLabel = feePercent > 0 ? `Supplier fee (${feePercent}%)` : "Supplier fee";
 
   return (
     <div className="space-y-3 rounded-xl border border-border bg-card p-4">
@@ -64,10 +65,11 @@ export function InvoiceBlock({
           <MoneyRow label="THB total" thb={thbTotal} bold />
         </>
       )}
+      {discountThb > 0 && <MoneyRow label="Discount" thb={-discountThb} />}
       {feePercent > 0 && (
         <MoneyRow label={`${feeLabel} (THB)`} thb={feeThb} mmk={snapshot.serviceFeeMmk} />
       )}
-      {!feePercent && <MoneyRow label="Service fee (MMK)" mmk={snapshot.serviceFeeMmk} />}
+      {!feePercent && <MoneyRow label="Supplier fee (MMK)" mmk={snapshot.serviceFeeMmk} />}
       <p className="text-xs text-muted-foreground">Rate locked: 1 THB = {snapshot.rate} MMK</p>
       {weightKg !== undefined && (
         <p className="text-xs text-muted-foreground">Chargeable weight: {weightKg} kg</p>
@@ -76,7 +78,7 @@ export function InvoiceBlock({
         label="Amount due"
         thb={
           snapshot.thbSubtotal > 0 || snapshot.thbShipping > 0 || feeThb > 0
-            ? productInvoiceThbAmountDue({ ...snapshot, serviceFeeThb: feeThb })
+            ? productInvoiceThbAmountDue({ ...snapshot, serviceFeeThb: feeThb, discountThb })
             : undefined
         }
         mmk={snapshot.mmkTotal}

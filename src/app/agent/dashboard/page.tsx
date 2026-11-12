@@ -14,7 +14,9 @@ export default async function AgentDashboardPage() {
     listAgentOrders(),
     getTenantSettingsForAgent(),
   ]);
-  const openOrders = orders.filter((order) => order.fulfillment !== "delivered");
+  const openOrders = orders.filter(
+    (order) => order.fulfillment !== "delivered" && order.fulfillment !== "cancelled",
+  );
   const maxStage = Math.max(...dashboard.pipeline.map((stage) => stage.count), 1);
 
   return (
@@ -27,7 +29,7 @@ export default async function AgentDashboardPage() {
           <div className="flex flex-wrap items-center gap-2">
             <p className="flex min-h-11 items-center gap-2 rounded-[10px] border border-border bg-card px-3.5 text-[13px]">
               <span className="font-semibold text-foreground">1 THB = {tenant.thbMmkRate} MMK</span>
-              <span className="text-muted-foreground">· service fee {tenant.defaultServiceFeePercent}%</span>
+              <span className="text-muted-foreground">· supplier fee {tenant.defaultServiceFeePercent}%</span>
             </p>
             <Button asChild className="rounded-[10px] px-[18px] font-semibold">
               <Link href="/agent/orders/new">New order</Link>

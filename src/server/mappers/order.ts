@@ -38,6 +38,7 @@ function mapProductInvoice(inv: ProductInvoice): InvoiceSnapshot {
   return {
     thbSubtotal: num(inv.thbSubtotal),
     thbShipping: num(inv.thbShipping),
+    discountThb: num(inv.discountThb),
     rate: num(inv.rateThbMmk),
     serviceFeePercent: num(inv.serviceFeePercent),
     serviceFeeThb: num(inv.serviceFeeThb),

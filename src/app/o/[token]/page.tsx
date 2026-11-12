@@ -8,7 +8,7 @@ type PageProps = { params: Promise<{ token: string }> };
 export default async function PublicOrderPage({ params }: PageProps) {
   const { token } = await params;
   const order = await getPublicOrderByToken(token);
-  if (!order) notFound();
+  if (!order || order.fulfillment === "cancelled") notFound();
 
   return (
     <main className="mx-auto min-h-screen max-w-md bg-background px-4 py-6 md:max-w-lg md:py-10">

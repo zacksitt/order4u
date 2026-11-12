@@ -34,7 +34,7 @@ import { lookupProductUrl } from "@/server/actions/shopee";
 type DraftLine = {
   title: string;
   url: string;
-  qty: number;
+  qty: number | "";
   price: number;
   shippingFee: number;
   marketplace: "shopee" | "lazada";
@@ -70,6 +70,8 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
   const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone ?? "");
   const [customerId, setCustomerId] = useState<string | undefined>();
   const [feePercent, setFeePercent] = useState(tenantDefaults.defaultServiceFeePercent);
+  const [rate, setRate] = useState(tenantDefaults.thbMmkRate);
+  const [discountThb, setDiscountThb] = useState(0);
   const [lines, setLines] = useState<DraftLine[]>([{ ...DEFAULT_LINE }]);
   const [fetchingIndex, setFetchingIndex] = useState<number | null>(null);
   const [lineErrors, setLineErrors] = useState<Record<number, string>>({});
@@ -85,6 +87,27 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
 
   function addLine() {
     setLines((prev) => [...prev, { ...DEFAULT_LINE }]);
+  }
+
+  function duplicateLine(index: number) {
+    setLines((prev) => {
+      const source = prev[index];
+      if (!source) return prev;
+      const copy: DraftLine = {
+        title: source.title,
+        url: source.url,
+        qty: source.qty,
+        price: source.price,
+        shippingFee: source.shippingFee,
+        marketplace: source.marketplace,
+        customerNote: "",
+      };
+      const next = [...prev];
+      next.splice(index + 1, 0, copy);
+      return next;
+    });
+    setLineErrors({});
+    setLineNotes({});
   }
 
   function removeLine(index: number) {
@@ -190,12 +213,19 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
       return;
     }
 
+    if (discountThb > quotedSubtotal) {
+      setError("Discount cannot be more than the item total.");
+      return;
+    }
+
     const checked = agentCreateOrderSchema.safeParse({
       customerName,
       customerPhone,
       customerId,
       thbShipping: shippingTotal,
       serviceFeePercent: feePercent,
+      thbMmkRate: rate,
+      discountThb,
       lines: payloadLines,
     });
     if (!checked.success) {
@@ -299,6 +329,11 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
                 <CardTitle className="text-base">Item {i + 1}</CardTitle>
                 <div className="flex items-center gap-2">
                   {!isCustomer && <CatalogItemBadge catalogItemId={line.catalogItemId} />}
+                  {!isCustomer && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => duplicateLine(i)}>
+                      Duplicate
+                    </Button>
+                  )}
                   {lines.length > 1 && (
                     <Button type="button" variant="ghost" size="sm" onClick={() => removeLine(i)}>
                       Remove
@@ -394,7 +429,15 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
                     min={1}
                     max={MAX_QTY}
                     value={line.qty}
-                    onChange={(e) => updateLine(i, { qty: Number(e.target.value) || 1 })}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === "") {
+                        updateLine(i, { qty: "" });
+                        return;
+                      }
+                      const next = Number(raw);
+                      updateLine(i, { qty: Number.isFinite(next) ? next : "" });
+                    }}
                   />
                 </div>
                 <div className="min-w-0 space-y-2">
@@ -407,7 +450,10 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
                     min={0.01}
                     step="0.01"
                     value={line.price || ""}
-                    onChange={(e) => updateLine(i, { price: Number(e.target.value) || 0 })}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      updateLine(i, { price: raw === "" ? 0 : Number(raw) || 0 });
+                    }}
                   />
                 </div>
                 {!isCustomer && (
@@ -463,7 +509,10 @@ export function NewOrderForm({ tenantDefaults, mode = "agent", initialCustomer }
         feePercent={feePercent}
         onFeePercentChange={isCustomer ? undefined : setFeePercent}
         feeReadOnly={isCustomer}
-        rate={tenantDefaults.thbMmkRate}
+        rate={rate}
+        onRateChange={isCustomer ? undefined : setRate}
+        discountThb={discountThb}
+        onDiscountChange={isCustomer ? undefined : setDiscountThb}
         initialFeePercent={tenantDefaults.defaultServiceFeePercent}
         title={isCustomer ? "Estimated total" : "Product invoice preview"}
         lines={lines

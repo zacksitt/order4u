@@ -33,6 +33,7 @@ export const FULFILLMENT_LABEL: Record<FulfillmentStatus, string> = {
   cargo_invoiced: "Cargo invoiced",
   in_transit: "Shipping to Myanmar",
   delivered: "Delivered",
+  cancelled: "Cancelled",
 };
 
 export function orderSummaryLabel(
@@ -40,6 +41,7 @@ export function orderSummaryLabel(
   fulfillment: FulfillmentStatus,
   cargoPaymentStatus?: CargoPaymentStatus,
 ): string {
+  if (fulfillment === "cancelled") return "Cancelled";
   if (!isProductPaid(productPaymentStatus)) return "Awaiting payment";
   if (fulfillment === "delivered") return "Delivered";
   if (fulfillment === "in_transit") return "Shipping to Myanmar";

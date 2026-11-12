@@ -15,7 +15,7 @@ export default async function AgentSettingsPage() {
 
       <Card>
         {/* <CardHeader>
-          <CardTitle className="text-base">FX & service fee</CardTitle>
+          <CardTitle className="text-base">FX & supplier fee</CardTitle>
           <CardDescription>
             Fee is calculated as a percent of THB total (items + TH shipping), then converted to MMK at the locked
             rate.

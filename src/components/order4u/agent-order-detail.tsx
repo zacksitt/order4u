@@ -19,7 +19,9 @@ import { isProductPaid } from "@/lib/payment-status";
 import { ITEM_STATUS_CLASS, ITEM_STATUS_LABEL } from "@/lib/status-labels";
 import type { CargoStaffUser, ItemStatus, Order } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { UnpaidQuoteEditor } from "@/components/order4u/unpaid-quote-editor";
 import {
+  cancelOrder,
   handOrderToCargo,
   markProductPaid,
   updateOrderItemActualPrice,
@@ -47,16 +49,33 @@ export function AgentOrderDetail({ order, cargoUsers, trackUrl }: AgentOrderDeta
   const [tab, setTab] = useState<"order" | "invoice">("order");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [cargoUserId, setCargoUserId] = useState(
     order.assignedCargoUserId ?? cargoUsers[0]?.id ?? "",
   );
 
   const paid = isProductPaid(order.productPaymentStatus);
+  const canCancel =
+    !paid &&
+    order.fulfillment !== "cancelled" &&
+    (order.fulfillment === "collecting" || order.fulfillment === "ready_for_cargo");
   const handed = isHandedToCargo(order.fulfillment);
   const atAgent = order.items.filter((item) => item.status === "arrived_at_agent").length;
   const assignee = cargoUsers.find((user) => user.id === (order.assignedCargoUserId ?? cargoUserId));
 
   const next = nextStep(order, atAgent, assignee?.displayName);
+
+  function cancel() {
+    setError(null);
+    startTransition(async () => {
+      const result = await cancelOrder(order.id);
+      if (!result.ok) setError(result.error);
+      else {
+        setConfirmCancel(false);
+        router.refresh();
+      }
+    });
+  }
 
   function markPaid() {
     setError(null);
@@ -183,6 +202,39 @@ export function AgentOrderDetail({ order, cargoUsers, trackUrl }: AgentOrderDeta
                 </Button>
               </div>
             ))}
+          {canCancel && !confirmCancel && (
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 min-h-12 rounded-xl px-[22px] text-[15px] font-semibold"
+              onClick={() => setConfirmCancel(true)}
+              disabled={pending}
+            >
+              Cancel order
+            </Button>
+          )}
+          {canCancel && confirmCancel && (
+            <>
+              <Button
+                type="button"
+                variant="destructive"
+                className="h-12 min-h-12 rounded-xl px-[22px] text-[15px] font-semibold"
+                onClick={cancel}
+                disabled={pending}
+              >
+                Confirm cancel
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-12 min-h-12 rounded-xl px-[22px] text-[15px] font-semibold"
+                onClick={() => setConfirmCancel(false)}
+                disabled={pending}
+              >
+                Keep order
+              </Button>
+            </>
+          )}
           {next.kind === "copy" && (
             <CopyLineButton
               text={trackUrl}
@@ -232,6 +284,14 @@ export function AgentOrderDetail({ order, cargoUsers, trackUrl }: AgentOrderDeta
 function nextStep(order: Order, atAgent: number, cargoName: string | undefined) {
   const paid = isProductPaid(order.productPaymentStatus);
   const handed = isHandedToCargo(order.fulfillment);
+  if (order.fulfillment === "cancelled") {
+    return {
+      kind: "none" as const,
+      tone: "calm" as const,
+      title: "Order cancelled",
+      hint: "This order was cancelled before the customer paid.",
+    };
+  }
   if (!paid) {
     return {
       kind: "pay" as const,
@@ -330,9 +390,9 @@ function OrderChecklist({
             <ItemRow key={item.id} orderId={order.id} item={item} locked={!paid || handed} />
           ))}
         </ul>
-        {!paid && (
+        {!paid && order.fulfillment !== "cancelled" && (
           <p className="bg-amber-50 px-[18px] py-3 text-[13px] text-amber-900">
-            You can update items after you confirm product payment.
+            Change, add, or remove items on the Invoice tab before the customer pays.
           </p>
         )}
       </section>
@@ -362,7 +422,9 @@ function ItemRow({
   locked: boolean;
 }) {
   const router = useRouter();
-  const [actualPrice, setActualPrice] = useState(item.actualPrice?.toString() ?? "");
+  const [actualPrice, setActualPrice] = useState(
+    item.actualPrice != null ? String(item.actualPrice) : String(item.price),
+  );
   const [editingPrice, setEditingPrice] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -501,13 +563,17 @@ function ItemRow({
 }
 
 function InvoicePanels({ order }: { order: Order }) {
+  const [editing, setEditing] = useState(false);
   const invoice = order.productInvoice;
   const cargo = order.cargoInvoice;
   const cargoPay = order.cargoPaymentStatus === "paid" ? "Paid" : "Awaiting payment";
+  const canEdit = !isProductPaid(order.productPaymentStatus) && order.fulfillment !== "cancelled" && Boolean(invoice);
 
   return (
     <div className="flex flex-col gap-4">
-      {invoice ? (
+      {canEdit && editing ? (
+        <UnpaidQuoteEditor order={order} onCancel={() => setEditing(false)} onSaved={() => setEditing(false)} />
+      ) : invoice ? (
         <ProductInvoiceCard
           title="Product invoice"
           snapshot={invoice}
@@ -518,6 +584,16 @@ function InvoicePanels({ order }: { order: Order }) {
           showDownload={false}
           headerActions={
             <div className="flex flex-wrap justify-end gap-2">
+              {canEdit && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 min-h-10 rounded-[10px] px-3.5 text-[13px] font-semibold"
+                  onClick={() => setEditing(true)}
+                >
+                  Edit
+                </Button>
+              )}
               <PdfShareButton
                 href={productInvoicePdfUrl(order.publicToken)}
                 fallbackFilename={`${order.code}-product-invoice.pdf`}

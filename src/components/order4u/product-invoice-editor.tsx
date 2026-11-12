@@ -18,6 +18,10 @@ type ProductInvoiceEditorProps = {
   /** When set, shipping is the sum of line fees and cannot be edited here. */
   shippingReadOnly?: boolean;
   rate?: number;
+  onRateChange?: (value: number) => void;
+  /** THB off the goods subtotal. */
+  discountThb?: number;
+  onDiscountChange?: (value: number) => void;
   /** Default / display hint when fee is uncontrolled. */
   initialFeePercent?: number;
   /** Controlled agent fee % (use with onFeePercentChange). */
@@ -35,6 +39,9 @@ export function ProductInvoiceEditor({
   onThbShippingChange,
   shippingReadOnly = false,
   rate = DEFAULT_TENANT_SETTINGS.thbMmkRate,
+  onRateChange,
+  discountThb = 0,
+  onDiscountChange,
   initialFeePercent = DEFAULT_TENANT_SETTINGS.defaultServiceFeePercent,
   feePercent: feePercentProp,
   onFeePercentChange,
@@ -44,6 +51,8 @@ export function ProductInvoiceEditor({
 }: ProductInvoiceEditorProps) {
   const [internalFee, setInternalFee] = useState(initialFeePercent);
   const [internalShipping, setInternalShipping] = useState(thbShippingProp);
+  const [rateText, setRateText] = useState(String(rate));
+  const [discountText, setDiscountText] = useState(discountThb > 0 ? String(discountThb) : "");
 
   const feeControlled = feePercentProp !== undefined && onFeePercentChange !== undefined;
   const shippingControlled = onThbShippingChange !== undefined;
@@ -67,18 +76,22 @@ export function ProductInvoiceEditor({
         thbSubtotal,
         thbShipping: shipping,
         rate,
+        discountThb,
         serviceFeePercent: feePercent,
       }),
-    [thbSubtotal, shipping, rate, feePercent],
+    [thbSubtotal, shipping, rate, discountThb, feePercent],
   );
+
+  const showRate = onRateChange !== undefined;
+  const showDiscount = onDiscountChange !== undefined;
 
   return (
     <div className="space-y-4">
-      {(!feeReadOnly || !shippingReadOnly) && (
+      {(!feeReadOnly || !shippingReadOnly || showRate || showDiscount) && (
         <div className="grid gap-3 sm:grid-cols-2">
           {!feeReadOnly && (
             <div className="space-y-2">
-              <Label htmlFor="fee-percent">Service fee (% of THB total)</Label>
+              <Label htmlFor="fee-percent">Supplier fee (% of THB total)</Label>
               <Input
                 id="fee-percent"
                 type="number"
@@ -90,6 +103,48 @@ export function ProductInvoiceEditor({
                 onChange={(e) => setFeePercent(Number(e.target.value) || 0)}
               />
               <p className="text-xs text-muted-foreground">Default from settings is {initialFeePercent}%.</p>
+            </div>
+          )}
+          {showRate && (
+            <div className="space-y-2">
+              <Label htmlFor="invoice-rate">Exchange rate (MMK per THB)</Label>
+              <Input
+                id="invoice-rate"
+                type="number"
+                min={0}
+                step="0.01"
+                inputMode="decimal"
+                value={rateText}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setRateText(raw);
+                  const next = Number(raw);
+                  if (raw.trim() !== "" && Number.isFinite(next) && next > 0) onRateChange!(next);
+                }}
+              />
+            </div>
+          )}
+          {showDiscount && (
+            <div className="space-y-2">
+              <Label htmlFor="invoice-discount">Discount (THB)</Label>
+              <Input
+                id="invoice-discount"
+                type="number"
+                min={0}
+                step="0.01"
+                inputMode="decimal"
+                value={discountText}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setDiscountText(raw);
+                  if (raw.trim() === "") {
+                    onDiscountChange!(0);
+                    return;
+                  }
+                  const next = Number(raw);
+                  if (Number.isFinite(next) && next >= 0) onDiscountChange!(next);
+                }}
+              />
             </div>
           )}
           {!shippingReadOnly && (

@@ -26,6 +26,7 @@ export async function listAgentOrders(opts?: { customerId?: string; code?: strin
     where: {
       tenantId: session.tenantId,
       assignedAgentId: session.userId,
+      fulfillmentStatus: { not: "cancelled" },
       ...(customerId ? { customerId } : {}),
       ...(code ? { code: { contains: code, mode: "insensitive" } } : {}),
     },
@@ -88,7 +89,7 @@ export async function listCustomerOrders(): Promise<Order[]> {
   const customerId = await customerIdForSession(session);
   if (!customerId) return [];
   const rows = await prisma.order.findMany({
-    where: { tenantId: session.tenantId, customerId },
+    where: { tenantId: session.tenantId, customerId, fulfillmentStatus: { not: "cancelled" } },
     include: orderDetailInclude,
     orderBy: { createdAt: "desc" },
     take: 200,
@@ -101,7 +102,7 @@ export async function getCustomerOrderById(id: string): Promise<{ order: Order; 
   const customerId = await customerIdForSession(session);
   if (!customerId) return undefined;
   const row = await prisma.order.findFirst({
-    where: { id, tenantId: session.tenantId, customerId },
+    where: { id, tenantId: session.tenantId, customerId, fulfillmentStatus: { not: "cancelled" } },
     include: { ...orderDetailInclude, tenant: { select: { name: true } } },
   });
   if (!row) return undefined;
