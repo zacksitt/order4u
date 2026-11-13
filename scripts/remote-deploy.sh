@@ -162,7 +162,11 @@ step "Update database" npx prisma db push --accept-data-loss
 step "Rewrite ids to UUID" node scripts/migrate-ids-to-uuid.mjs
 step "Restore foreign keys" npx prisma db push --accept-data-loss
 step "Encrypt customer PII" npx tsx scripts/encrypt-customer-pii.ts
-step "Ensure demo users" npm run db:seed
+if [ "$DEPLOY_BRANCH" = "dev" ]; then
+  step "Ensure demo users" npm run db:seed
+else
+  echo "::notice::Skipping demo seed on ${DEPLOY_BRANCH}"
+fi
 step "Ensure pm2" ensure_pm2
 step "Restart app" restart_app
 echo "Deploy finished"
