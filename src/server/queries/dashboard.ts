@@ -1,4 +1,4 @@
-import { requireAgent } from "@/server/auth/session";
+import { requireAgent, requireCargo } from "@/server/auth/session";
 import { prisma } from "@/server/db";
 
 export type AgentDashboardStats = {
@@ -166,6 +166,119 @@ export async function getAgentDashboardStats(): Promise<AgentDashboard> {
 
   return {
     stats: { openOrders, awaitingProductPay, atCargo, deliveredThisMonth },
+    actions: actionRows.filter((row) => row.count > 0),
+    pipeline: stages,
+  };
+}
+
+const CARGO_CHECKING = [
+  "cargo_received",
+  "cargo_checking",
+  "cargo_check_ok",
+  "cargo_check_exception",
+] as const;
+
+export type CargoDashboardStats = {
+  openOrders: number;
+  toReceive: number;
+  awaitingCargoPay: number;
+  deliveredThisMonth: number;
+};
+
+export type CargoDashboard = {
+  stats: CargoDashboardStats;
+  actions: DashboardAction[];
+  pipeline: DashboardStage[];
+};
+
+export async function getCargoDashboardStats(): Promise<CargoDashboard> {
+  const session = await requireCargo();
+  const base = { tenantId: session.tenantId, assignedCargoUserId: session.userId };
+  const monthStart = startOfMonth();
+
+  const [
+    openOrders,
+    toReceive,
+    toInvoice,
+    awaitingCargoPay,
+    toShip,
+    inTransit,
+    deliveredThisMonth,
+    checking,
+  ] = await Promise.all([
+    prisma.order.count({ where: { ...base, fulfillmentStatus: { notIn: ["delivered", "cancelled"] } } }),
+    prisma.order.count({ where: { ...base, fulfillmentStatus: "handed_to_cargo" } }),
+    prisma.order.count({
+      where: {
+        ...base,
+        fulfillmentStatus: { in: [...CARGO_CHECKING] },
+        cargoInvoice: { is: null },
+      },
+    }),
+    prisma.order.count({
+      where: { ...base, fulfillmentStatus: "cargo_invoiced", cargoPaymentStatus: "awaiting" },
+    }),
+    prisma.order.count({
+      where: { ...base, fulfillmentStatus: "cargo_invoiced", cargoPaymentStatus: "paid" },
+    }),
+    prisma.order.count({ where: { ...base, fulfillmentStatus: "in_transit" } }),
+    prisma.order.count({
+      where: { ...base, fulfillmentStatus: "delivered", updatedAt: { gte: monthStart } },
+    }),
+    prisma.order.count({ where: { ...base, fulfillmentStatus: { in: [...CARGO_CHECKING] } } }),
+  ]);
+
+  const actionRows: DashboardAction[] = [
+    {
+      key: "to-receive",
+      count: toReceive,
+      title: "Orders to receive",
+      detail: "Agent handed these over. Confirm they arrived.",
+      cta: "Receive",
+      href: "/cargo/orders?view=receive",
+      countClassName: "bg-amber-100 text-amber-900",
+    },
+    {
+      key: "to-invoice",
+      count: toInvoice,
+      title: "Ready to invoice",
+      detail: "Check items and issue the cargo invoice",
+      cta: "Invoice",
+      href: "/cargo/orders?view=invoice",
+      countClassName: "bg-cyan-50 text-teal-700",
+    },
+    {
+      key: "awaiting-pay",
+      count: awaitingCargoPay,
+      title: "Awaiting cargo payment",
+      detail: "Customer has not paid the cargo invoice yet",
+      cta: "Open",
+      href: "/cargo/orders?view=payment",
+      countClassName: "bg-slate-200 text-slate-800",
+    },
+    {
+      key: "to-ship",
+      count: toShip,
+      title: "Ready to ship",
+      detail: "Cargo fee is paid. Mark in transit when you send.",
+      cta: "Ship",
+      href: "/cargo/orders?view=ship",
+      countClassName: "bg-cyan-50 text-teal-700",
+    },
+  ];
+
+  const stages: DashboardStage[] = [
+    { label: "To receive", count: toReceive, barClassName: "bg-amber-600" },
+    { label: "Checking", count: checking, barClassName: "bg-teal-600" },
+    { label: "To invoice", count: toInvoice, barClassName: "bg-teal-600" },
+    { label: "Cargo payment due", count: awaitingCargoPay, barClassName: "bg-amber-600" },
+    { label: "Ready to ship", count: toShip, barClassName: "bg-blue-600" },
+    { label: "In transit", count: inTransit, barClassName: "bg-blue-600" },
+    { label: "Delivered this month", count: deliveredThisMonth, barClassName: "bg-emerald-600" },
+  ];
+
+  return {
+    stats: { openOrders, toReceive, awaitingCargoPay, deliveredThisMonth },
     actions: actionRows.filter((row) => row.count > 0),
     pipeline: stages,
   };

@@ -82,6 +82,7 @@ function mapItem(row: OrderItemRow): OrderItem {
     checkOk: row.cargoCheckOk ?? undefined,
     checkNote: row.cargoCheckNote ?? undefined,
     customerNote: row.customerNote ?? undefined,
+    cancelNote: row.cancelNote ?? undefined,
     categoryId: row.itemCategoryId ?? undefined,
     categoryName: row.itemCategory?.name,
     categoryCargoPriceThb:

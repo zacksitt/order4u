@@ -2,7 +2,7 @@ import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 
 import { lineShippingThb, lineTotalThb, type InvoiceLineDisplay } from "@/lib/invoice-display";
 import "@/lib/pdf/register-font";
-import { productInvoiceThbAmountDue } from "@/lib/product-invoice-calc";
+import { productInvoiceThbAmountDue, remainingProductAmountDue } from "@/lib/product-invoice-calc";
 import type { InvoiceSnapshot } from "@/lib/types";
 
 export type ProductInvoicePdfData = {
@@ -29,6 +29,9 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
   totalBold: { fontSize: 12, fontWeight: "bold", marginTop: 8 },
   foot: { marginTop: 24, fontSize: 8, color: "#666" },
+  struck: { textDecoration: "line-through", color: "#64748b" },
+  cancelled: { color: "#991b1b", fontSize: 8, marginTop: 2 },
+  note: { color: "#666", fontSize: 8, marginTop: 2 },
 });
 
 function fmtThb(n: number) {
@@ -48,6 +51,9 @@ export function ProductInvoicePdfDocument({
 }: ProductInvoicePdfData) {
   const thbTotal = snapshot.thbSubtotal + snapshot.thbShipping;
   const feePercent = snapshot.serviceFeePercent;
+  const hasCancelled = lines.some((line) => line.cancelled);
+  const due = hasCancelled ? remainingProductAmountDue(snapshot, lines) : null;
+  const paidThb = productInvoiceThbAmountDue(snapshot);
 
   return (
     <Document>
@@ -71,27 +77,31 @@ export function ProductInvoicePdfDocument({
             return (
               <View key={i} style={styles.row}>
                 <View style={styles.colItem}>
-                  <Text>{line.title}</Text>
+                  <Text style={line.cancelled ? styles.struck : undefined}>{line.title}</Text>
+                  {line.cancelled ? <Text style={styles.cancelled}>Cancelled</Text> : null}
+                  {line.cancelled && line.cancelNote ? <Text style={styles.note}>{line.cancelNote}</Text> : null}
                   {shipping > 0 ? (
-                    <Text style={{ color: "#555", fontSize: 8, marginTop: 2 }}>
+                    <Text style={line.cancelled ? [styles.note, styles.struck] : { color: "#555", fontSize: 8, marginTop: 2 }}>
                       Shipping {fmtThb(shipping)}
                     </Text>
                   ) : null}
                 </View>
-                <Text style={styles.colQty}>{line.qty}</Text>
-                <Text style={styles.colPrice}>{fmtThb(line.price)}</Text>
-                <Text style={styles.colLine}>{fmtThb(lineTotalThb(line))}</Text>
+                <Text style={line.cancelled ? [styles.colQty, styles.struck] : styles.colQty}>{line.qty}</Text>
+                <Text style={line.cancelled ? [styles.colPrice, styles.struck] : styles.colPrice}>{fmtThb(line.price)}</Text>
+                <Text style={line.cancelled ? [styles.colLine, styles.struck] : styles.colLine}>{fmtThb(lineTotalThb(line))}</Text>
               </View>
             );
           })}
         </View>
 
         <View style={styles.totals}>
-          <View style={styles.totalRow}>
-            <Text>Subtotal (THB)</Text>
-            <Text>{fmtThb(thbTotal)}</Text>
-          </View>
-          {snapshot.discountThb > 0 ? (
+          {due ? null : (
+            <View style={styles.totalRow}>
+              <Text>Subtotal (THB)</Text>
+              <Text>{fmtThb(thbTotal)}</Text>
+            </View>
+          )}
+          {!due && snapshot.discountThb > 0 ? (
             <View style={styles.totalRow}>
               <Text>Discount (THB)</Text>
               <Text>− {fmtThb(snapshot.discountThb)}</Text>
@@ -101,13 +111,14 @@ export function ProductInvoicePdfDocument({
             <View style={styles.totalRow}>
               <Text>Supplier fee ({feePercent}%) (THB)</Text>
               <Text>
-                {fmtThb(snapshot.serviceFeeThb)} / {fmtMmk(snapshot.serviceFeeMmk)}
+                {fmtThb(due ? due.serviceFeeThb : snapshot.serviceFeeThb)} /{" "}
+                {fmtMmk(due ? due.serviceFeeMmk : snapshot.serviceFeeMmk)}
               </Text>
             </View>
           ) : (
             <View style={styles.totalRow}>
               <Text>Supplier fee (MMK)</Text>
-              <Text>{fmtMmk(snapshot.serviceFeeMmk)}</Text>
+              <Text>{fmtMmk(due ? due.serviceFeeMmk : snapshot.serviceFeeMmk)}</Text>
             </View>
           )}
           <View style={styles.totalRow}>
@@ -117,9 +128,17 @@ export function ProductInvoicePdfDocument({
           <View style={[styles.totalRow, styles.totalBold]}>
             <Text>Amount due</Text>
             <Text>
-              {fmtThb(productInvoiceThbAmountDue(snapshot))} / {fmtMmk(snapshot.mmkTotal)}
+              {fmtThb(due ? due.thb : paidThb)} / {fmtMmk(due ? due.mmk : snapshot.mmkTotal)}
             </Text>
           </View>
+          {due ? (
+            <View style={styles.totalRow}>
+              <Text>Paid</Text>
+              <Text>
+                {fmtThb(paidThb)} / {fmtMmk(snapshot.mmkTotal)}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         <Text style={styles.foot}>

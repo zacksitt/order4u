@@ -1,0 +1,69 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+import { BrandLogo } from "@/components/order4u/brand-logo";
+import { CargoShopSelect } from "@/components/order4u/cargo-shop-select";
+import { InstallAppButton } from "@/components/order4u/install-app-button";
+import { NotificationBell } from "@/components/order4u/notification-bell";
+import { CARGO_NAV_LINKS, isCargoNavActive } from "@/lib/cargo-nav-links";
+import { cn } from "@/lib/utils";
+import { logout } from "@/server/actions/auth";
+import type { NotificationFeed } from "@/server/queries/notifications";
+
+export function CargoSidebar({
+  shops,
+  currentTenantId,
+  notifications,
+}: {
+  shops: { id: string; name: string }[];
+  currentTenantId: string;
+  notifications: NotificationFeed;
+}) {
+  const pathname = usePathname();
+
+  return (
+    <aside className="hidden md:flex md:w-56 md:flex-col md:border-r md:border-border md:bg-card md:shrink-0">
+      <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-5">
+        <div className="min-w-0 flex-1">
+          <BrandLogo className="h-16" />
+          <CargoShopSelect shops={shops} currentTenantId={currentTenantId} className="mt-2" />
+        </div>
+        <NotificationBell
+          items={notifications.items}
+          unreadCount={notifications.unreadCount}
+          align="left"
+        />
+      </div>
+      <nav className="flex flex-1 flex-col gap-1 p-3">
+        {CARGO_NAV_LINKS.map(({ href, label, icon: Icon }) => {
+          const active = isCargoNavActive(pathname, href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                active
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="border-t border-border p-3">
+        <InstallAppButton className="w-full justify-start" />
+      </div>
+      <form action={logout} className="border-t border-border p-3">
+        <button type="submit" className="w-full rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
+          Sign out
+        </button>
+      </form>
+    </aside>
+  );
+}

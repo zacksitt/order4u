@@ -12,6 +12,7 @@ import { PdfDownloadButton, PdfShareButton } from "@/components/order4u/pdf-down
 import { ProductInvoiceCard } from "@/components/order4u/product-invoice-card";
 import { StatusPill } from "@/components/order4u/status-pill";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 import { fmtThb } from "@/lib/format-money";
 import { orderItemsToInvoiceLines, productInvoicePdfUrl } from "@/lib/invoice-display";
 import { allItemsArrived, canHandOrderToCargo, isHandedToCargo } from "@/lib/order-rules";
@@ -21,6 +22,7 @@ import type { CargoStaffUser, ItemStatus, Order } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { UnpaidQuoteEditor } from "@/components/order4u/unpaid-quote-editor";
 import {
+  cancelBoughtItem,
   cancelOrder,
   handOrderToCargo,
   markProductPaid,
@@ -202,38 +204,19 @@ export function AgentOrderDetail({ order, cargoUsers, trackUrl }: AgentOrderDeta
                 </Button>
               </div>
             ))}
-          {canCancel && !confirmCancel && (
+          {canCancel && (
             <Button
               type="button"
               variant="outline"
               className="h-12 min-h-12 rounded-xl px-[22px] text-[15px] font-semibold"
-              onClick={() => setConfirmCancel(true)}
+              onClick={() => {
+                setError(null);
+                setConfirmCancel(true);
+              }}
               disabled={pending}
             >
               Cancel order
             </Button>
-          )}
-          {canCancel && confirmCancel && (
-            <>
-              <Button
-                type="button"
-                variant="destructive"
-                className="h-12 min-h-12 rounded-xl px-[22px] text-[15px] font-semibold"
-                onClick={cancel}
-                disabled={pending}
-              >
-                Confirm cancel
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-12 min-h-12 rounded-xl px-[22px] text-[15px] font-semibold"
-                onClick={() => setConfirmCancel(false)}
-                disabled={pending}
-              >
-                Keep order
-              </Button>
-            </>
           )}
           {next.kind === "copy" && (
             <CopyLineButton
@@ -243,8 +226,34 @@ export function AgentOrderDetail({ order, cargoUsers, trackUrl }: AgentOrderDeta
             />
           )}
         </div>
-        {error && <p className="w-full text-sm text-destructive">{error}</p>}
+        {error && !confirmCancel && <p className="w-full text-sm text-destructive">{error}</p>}
       </section>
+      {canCancel && confirmCancel && (
+        <Modal
+          title="Cancel this order?"
+          description="The customer has not paid. This order will be cancelled."
+          onClose={() => {
+            if (!pending) setConfirmCancel(false);
+          }}
+        >
+          <div className="flex flex-col gap-3">
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="destructive" onClick={cancel} disabled={pending}>
+                {pending ? "Cancelling…" : "Cancel order"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setConfirmCancel(false)}
+                disabled={pending}
+              >
+                Keep order
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       <div role="tablist" aria-label="Order sections" className="flex gap-8 border-b border-border">
         {(
@@ -298,6 +307,14 @@ function nextStep(order: Order, atAgent: number, cargoName: string | undefined) 
       tone: "warn" as const,
       title: "Customer paid",
       hint: "Send the link so they can pay. Tap Customer paid when their transfer arrives.",
+    };
+  }
+  if (order.items.length > 0 && order.items.every((item) => item.status === "cancelled")) {
+    return {
+      kind: "none" as const,
+      tone: "calm" as const,
+      title: "All items cancelled",
+      hint: "The seller cancelled these items.",
     };
   }
   if (!allItemsArrived(order.items)) {
@@ -428,10 +445,15 @@ function ItemRow({
   const [editingPrice, setEditingPrice] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelNote, setCancelNote] = useState("");
+  const [advanceOpen, setAdvanceOpen] = useState(false);
   const advance = NEXT_STATUS[item.status];
+  const confirmAdvance = advance?.label === "Bought" || advance?.label === "Seller sent";
   const arrived = item.status === "arrived_at_agent";
   const buying = item.status === "pending_purchase";
   const showPriceInput = item.status !== "cancelled" && !locked && (buying || editingPrice);
+  const canCancelBought = item.status === "purchased" && !locked && !editingPrice;
 
   function parsePrice(): number | undefined | null {
     if (actualPrice.trim() === "") return undefined;
@@ -456,6 +478,24 @@ function ItemRow({
     });
   }
 
+  function saveCancel() {
+    const note = cancelNote.trim();
+    if (note === "") {
+      setError("Add a note.");
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const result = await cancelBoughtItem({ orderId, itemId: item.id, note });
+      if (!result.ok) setError(result.error);
+      else {
+        setCancelOpen(false);
+        setCancelNote("");
+        router.refresh();
+      }
+    });
+  }
+
   function markNext() {
     if (!advance) return;
     setError(null);
@@ -472,8 +512,26 @@ function ItemRow({
         actualPrice: price,
       });
       if (!result.ok) setError(result.error);
-      else router.refresh();
+      else {
+        setAdvanceOpen(false);
+        router.refresh();
+      }
     });
+  }
+
+  function requestAdvance() {
+    if (!advance) return;
+    setError(null);
+    const price = parsePrice();
+    if (price === null || (buying && price === undefined)) {
+      setError("Enter the THB amount you paid.");
+      return;
+    }
+    if (confirmAdvance) {
+      setAdvanceOpen(true);
+      return;
+    }
+    markNext();
   }
 
   return (
@@ -490,6 +548,9 @@ function ItemRow({
         <p className="text-sm font-semibold">{item.title}</p>
         {item.customerNote ? (
           <p className="mt-0.5 text-[13px] text-muted-foreground">{item.customerNote}</p>
+        ) : null}
+        {item.status === "cancelled" && item.cancelNote ? (
+          <p className="mt-0.5 text-[13px] text-slate-600">Cancel note: {item.cancelNote}</p>
         ) : null}
         <p className="mt-0.5 text-[13px] text-muted-foreground">
           {item.qty} × {fmtThb(item.price)}
@@ -545,7 +606,7 @@ function ItemRow({
       {advance && !editingPrice && (
         <button
           type="button"
-          onClick={markNext}
+          onClick={requestAdvance}
           disabled={locked || pending}
           className={cn(
             "min-h-10 rounded-[10px] px-3.5 text-[13px] font-semibold whitespace-nowrap",
@@ -557,7 +618,77 @@ function ItemRow({
           {advance.label}
         </button>
       )}
-      {error && <p className="w-full text-xs text-destructive">{error}</p>}
+      {advanceOpen && advance && (
+        <Modal
+          title={advance.label === "Bought" ? "Mark as bought?" : "Mark as seller sent?"}
+          description={
+            advance.label === "Bought"
+              ? `${item.title} will be marked as bought.`
+              : `${item.title} will be marked as sent by the seller.`
+          }
+          onClose={() => {
+            if (!pending) setAdvanceOpen(false);
+          }}
+        >
+          <div className="flex flex-col gap-3">
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" onClick={markNext} disabled={pending}>
+                {pending ? "Saving…" : advance.label}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAdvanceOpen(false)}
+                disabled={pending}
+              >
+                Back
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {canCancelBought && (
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setCancelOpen(true);
+          }}
+          disabled={pending}
+          className="min-h-10 rounded-[10px] border border-red-300 bg-white px-3.5 text-[13px] font-semibold whitespace-nowrap text-red-700"
+        >
+          Cancel
+        </button>
+      )}
+      {cancelOpen && (
+        <Modal
+          title="Cancel item"
+          description="The seller cancelled this item. Add a note, then save."
+          onClose={() => {
+            if (!pending) setCancelOpen(false);
+          }}
+        >
+          <div className="flex flex-col gap-3">
+            <label className="flex flex-col gap-1 text-sm font-semibold text-slate-700" htmlFor={`cancel-note-${item.id}`}>
+              Note
+              <textarea
+                id={`cancel-note-${item.id}`}
+                value={cancelNote}
+                onChange={(event) => setCancelNote(event.target.value)}
+                maxLength={500}
+                disabled={pending}
+                className="min-h-24 w-full rounded-lg border border-input bg-background px-3 py-2 text-base font-normal md:text-sm"
+              />
+            </label>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button type="button" onClick={saveCancel} disabled={pending}>
+              {pending ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </Modal>
+      )}
+      {error && !advanceOpen && !cancelOpen && <p className="w-full text-xs text-destructive">{error}</p>}
     </li>
   );
 }

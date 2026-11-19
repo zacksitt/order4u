@@ -111,7 +111,8 @@ export function CargoOrderDetail({
   const [categoryIds, setCategoryIds] = useState<Record<string, string>>(() =>
     Object.fromEntries(order.items.map((item) => [item.id, item.categoryId ?? ""])),
   );
-  const categoriesDirty = order.items.some((item) => (categoryIds[item.id] ?? "") !== (item.categoryId ?? ""));
+  const shippable = order.items.filter((item) => item.status !== "cancelled");
+  const categoriesDirty = shippable.some((item) => (categoryIds[item.id] ?? "") !== (item.categoryId ?? ""));
   const [weightInputs, setWeightInputs] = useState<Record<string, string>>({});
   const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
   const [discountInput, setDiscountInput] = useState("");
@@ -128,7 +129,9 @@ export function CargoOrderDetail({
 
   const paid = isProductPaid(order.productPaymentStatus);
   const next = cargoNext(order);
-  const atAgent = order.items.filter((item) => item.status === "arrived_at_agent").length;
+  const atAgent = shippable.filter((item) => item.status === "arrived_at_agent").length;
+  const arrivedLabel =
+    atAgent === shippable.length ? `${atAgent} arrived` : `${atAgent} of ${shippable.length} arrived`;
 
   function run(action: () => Promise<{ ok: boolean; error?: string }>) {
     setError(null);
@@ -142,7 +145,7 @@ export function CargoOrderDetail({
   function saveCategories() {
     return assignItemCategories({
       orderId: order.id,
-      items: order.items.map((item) => ({ itemId: item.id, categoryId: categoryIds[item.id] || null })),
+      items: shippable.map((item) => ({ itemId: item.id, categoryId: categoryIds[item.id] || null })),
     });
   }
 
@@ -465,11 +468,11 @@ export function CargoOrderDetail({
             <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-[18px] py-3.5">
               <h2 className="text-[15px] font-semibold">Items</h2>
               <span className="text-[13px] text-slate-600">
-                {atAgent} of {order.items.length} arrived
+                {arrivedLabel}
               </span>
             </div>
             <ul>
-              {order.items.map((item) => {
+              {shippable.map((item) => {
                 return (
                   <li
                     key={item.id}

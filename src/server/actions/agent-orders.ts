@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ItemStatus } from "@/lib/types";
 
-import { agentCreateOrderSchema, firstIssueMessage, updateUnpaidQuoteSchema, zThbPositive, zUuid } from "@/lib/input-rules";
+import {
+  agentCreateOrderSchema,
+  firstIssueMessage,
+  sanitizeMultiline,
+  updateUnpaidQuoteSchema,
+  zThbPositive,
+  zUuid,
+} from "@/lib/input-rules";
 import { canHandOrderToCargo } from "@/lib/order-rules";
 import { requireAgent } from "@/server/auth/session";
 import { prisma } from "@/server/db";
@@ -128,6 +135,9 @@ export async function updateOrderItemStatus(input: {
   if (!order) return { ok: false, error: "Order not found." };
   const item = order.items.find((i) => i.id === ids.data.itemId);
   if (!item) return { ok: false, error: "Item not found." };
+  if (statusParsed.data === "cancelled") {
+    return { ok: false, error: "Add a note to cancel this item." };
+  }
 
   const detailParts = [ids.data.itemId, item.status, statusParsed.data];
   if (priceParsed) detailParts.push(String(priceParsed.data));
@@ -151,6 +161,61 @@ export async function updateOrderItemStatus(input: {
   });
 
   revalidatePath(`/agent/orders/${ids.data.orderId}`);
+  return { ok: true };
+}
+
+export async function cancelBoughtItem(input: {
+  orderId: string;
+  itemId: string;
+  note: string;
+}): Promise<ActionResult> {
+  const parsed = z
+    .object({
+      orderId: zUuid,
+      itemId: zUuid,
+      note: z.string().trim().min(1, "Add a note.").max(500, "Notes are too long (max 500 characters)."),
+    })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, error: firstIssueMessage(parsed.error, "Add a note.") };
+  const note = sanitizeMultiline(parsed.data.note);
+  if (note === "") return { ok: false, error: "Add a note." };
+
+  const session = await requireAgent();
+  const order = await prisma.order.findFirst({
+    where: { id: parsed.data.orderId, tenantId: session.tenantId, assignedAgentId: session.userId },
+    include: { items: true },
+  });
+  if (!order) return { ok: false, error: "Order not found." };
+  if (order.productPaymentStatus !== "paid") {
+    return { ok: false, error: "Mark the order paid before cancelling a bought item." };
+  }
+  if (order.fulfillmentStatus !== "collecting" && order.fulfillmentStatus !== "ready_for_cargo") {
+    return { ok: false, error: "This item can no longer be cancelled." };
+  }
+  const item = order.items.find((row) => row.id === parsed.data.itemId);
+  if (!item) return { ok: false, error: "Item not found." };
+  if (item.status !== "purchased") {
+    return { ok: false, error: "Only a bought item can be cancelled." };
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.orderItem.update({
+      where: { id: item.id },
+      data: { status: "cancelled", cancelNote: note },
+    });
+    await appendAction(tx, {
+      tenantId: session.tenantId,
+      entityType: "order",
+      entityId: order.id,
+      userId: session.userId,
+      action: "item_status_changed",
+      detail: `${item.id} purchased cancelled ${note}`,
+    });
+  });
+
+  revalidatePath(`/agent/orders/${order.id}`);
+  revalidatePath("/agent/orders");
+  revalidatePath("/customer/orders");
   return { ok: true };
 }
 

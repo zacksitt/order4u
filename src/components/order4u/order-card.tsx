@@ -10,8 +10,8 @@ import type { Order } from "@/lib/types";
 type OrderCardProps = {
   order: Order;
   href: string;
-  /** Customer cards hide staff-only details such as phone and warehouse progress. */
-  audience?: "staff" | "customer";
+  /** Customer cards hide staff-only details such as phone and warehouse progress. Cargo cards count only items that will ship. */
+  audience?: "staff" | "customer" | "cargo";
 };
 
 function fmtMmk(n: number) {
@@ -20,9 +20,8 @@ function fmtMmk(n: number) {
 
 export function OrderCard({ order, href, audience = "staff" }: OrderCardProps) {
   const forCustomer = audience === "customer";
-  const arrived = order.items.filter(
-    (i) => i.status === "arrived_at_agent",
-  ).length;
+  const counted = audience === "cargo" ? order.items.filter((item) => item.status !== "cancelled") : order.items;
+  const arrived = counted.filter((item) => item.status === "arrived_at_agent").length;
   const mmk = order.productInvoice?.mmkTotal;
 
   return (
@@ -80,8 +79,8 @@ export function OrderCard({ order, href, audience = "staff" }: OrderCardProps) {
               <div>
                 <span className="font-medium text-foreground">Items</span>
                 <p className="mt-0.5">
-                  {order.items.length} line{order.items.length !== 1 ? "s" : ""}{" "}
-                  · {arrived}/{order.items.length} arrived
+                  {counted.length} line{counted.length !== 1 ? "s" : ""}{" "}
+                  · {arrived}/{counted.length} arrived
                 </p>
               </div>
               <div className="text-right">

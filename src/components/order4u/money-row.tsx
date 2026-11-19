@@ -37,6 +37,7 @@ export function InvoiceBlock({
   snapshot,
   weightKg,
   hideShipping = true,
+  settlement,
 }: {
   title: string;
   snapshot: InvoiceSnapshot | (Omit<InvoiceSnapshot, "serviceFeePercent" | "serviceFeeThb"> & {
@@ -46,17 +47,27 @@ export function InvoiceBlock({
   weightKg?: number;
   /** Hide the Thai shipping row when shipping is already shown on each item. */
   hideShipping?: boolean;
+  /** After a line is cancelled: fee drops that item's share, amount due is what remains, paid is the original bill. */
+  settlement?: {
+    amountDueThb: number;
+    amountDueMmk: number;
+    paidThb: number;
+    paidMmk: number;
+    feeThb: number;
+    feeMmk: number;
+  };
 }) {
   const thbTotal = snapshot.thbSubtotal + snapshot.thbShipping;
   const discountThb = "discountThb" in snapshot ? (snapshot.discountThb ?? 0) : 0;
   const feePercent = snapshot.serviceFeePercent ?? 0;
-  const feeThb = snapshot.serviceFeeThb ?? 0;
+  const feeThb = settlement ? settlement.feeThb : (snapshot.serviceFeeThb ?? 0);
+  const feeMmk = settlement ? settlement.feeMmk : snapshot.serviceFeeMmk;
   const feeLabel = feePercent > 0 ? `Supplier fee (${feePercent}%)` : "Supplier fee";
 
   return (
     <div className="space-y-3 rounded-xl border border-border bg-card p-4">
       <h3 className="font-semibold">{title}</h3>
-      {hideShipping ? (
+      {settlement ? null : hideShipping ? (
         <MoneyRow label="Subtotal (THB)" thb={thbTotal} />
       ) : (
         <>
@@ -67,9 +78,9 @@ export function InvoiceBlock({
       )}
       {discountThb > 0 && <MoneyRow label="Discount" thb={-discountThb} />}
       {feePercent > 0 && (
-        <MoneyRow label={`${feeLabel} (THB)`} thb={feeThb} mmk={snapshot.serviceFeeMmk} />
+        <MoneyRow label={`${feeLabel} (THB)`} thb={feeThb} mmk={feeMmk} />
       )}
-      {!feePercent && <MoneyRow label="Supplier fee (MMK)" mmk={snapshot.serviceFeeMmk} />}
+      {!feePercent && <MoneyRow label="Supplier fee (MMK)" mmk={feeMmk} />}
       <p className="text-xs text-muted-foreground">Rate locked: 1 THB = {snapshot.rate} MMK</p>
       {weightKg !== undefined && (
         <p className="text-xs text-muted-foreground">Chargeable weight: {weightKg} kg</p>
@@ -77,13 +88,16 @@ export function InvoiceBlock({
       <MoneyRow
         label="Amount due"
         thb={
-          snapshot.thbSubtotal > 0 || snapshot.thbShipping > 0 || feeThb > 0
-            ? productInvoiceThbAmountDue({ ...snapshot, serviceFeeThb: feeThb, discountThb })
-            : undefined
+          settlement
+            ? settlement.amountDueThb
+            : snapshot.thbSubtotal > 0 || snapshot.thbShipping > 0 || feeThb > 0
+              ? productInvoiceThbAmountDue({ ...snapshot, serviceFeeThb: feeThb, discountThb })
+              : undefined
         }
-        mmk={snapshot.mmkTotal}
+        mmk={settlement ? settlement.amountDueMmk : snapshot.mmkTotal}
         bold
       />
+      {settlement ? <MoneyRow label="Paid" thb={settlement.paidThb} mmk={settlement.paidMmk} /> : null}
     </div>
   );
 }

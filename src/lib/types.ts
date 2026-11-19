@@ -85,6 +85,8 @@ export type OrderItem = {
   checkNote?: string;
   /** Customer product options / notes on this line. */
   customerNote?: string;
+  /** Why a bought item was cancelled, usually because the seller cancelled. */
+  cancelNote?: string;
   /** Cargo category assigned on this line. */
   categoryId?: string;
   categoryName?: string;

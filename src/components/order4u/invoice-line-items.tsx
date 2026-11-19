@@ -32,21 +32,28 @@ export function InvoiceLineItems({ lines, className, compact, qtyOnly }: Invoice
           {lines.map((line, i) => {
             const shipping = lineShippingThb(line);
             const total = lineTotalThb(line);
+            const struck = line.cancelled ? "text-muted-foreground line-through" : "";
             return (
               <tr key={`${line.title}-${i}`} className="border-b border-border last:border-0">
                 <td className={cn("px-3 py-2.5 font-medium break-words", compact && "text-xs")}>
-                  <span className="block">{line.title}</span>
+                  <span className={cn("block", struck)}>{line.title}</span>
+                  {line.cancelled ? (
+                    <span className="mt-0.5 block text-xs font-semibold text-red-700">Cancelled</span>
+                  ) : null}
+                  {line.cancelled && line.cancelNote ? (
+                    <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{line.cancelNote}</span>
+                  ) : null}
                   {!qtyOnly && shipping > 0 && (
-                    <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                    <span className={cn("mt-0.5 block text-xs font-normal text-muted-foreground", struck)}>
                       Shipping {fmtThb(shipping)}
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{line.qty}</td>
+                <td className={cn("px-3 py-2.5 text-right tabular-nums text-muted-foreground", struck)}>{line.qty}</td>
                 {qtyOnly ? null : (
                   <>
-                    <td className="px-3 py-2.5 text-right tabular-nums">{fmtThb(line.price)}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">{fmtThb(total)}</td>
+                    <td className={cn("px-3 py-2.5 text-right tabular-nums", struck || undefined)}>{fmtThb(line.price)}</td>
+                    <td className={cn("px-3 py-2.5 text-right tabular-nums", struck || undefined)}>{fmtThb(total)}</td>
                   </>
                 )}
               </tr>

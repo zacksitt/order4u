@@ -29,7 +29,7 @@ export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
 
         const membership = await prisma.tenantMembership.findFirst({
           where: { userId: user.id, role: { in: ["agent", "cargo", "customer"] } },
-          orderBy: { role: "asc" },
+          orderBy: [{ role: "asc" }, { tenantId: "asc" }],
         });
         if (!membership) return null;
 

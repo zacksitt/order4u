@@ -5,6 +5,7 @@ import { InvoiceLineItems } from "@/components/order4u/invoice-line-items";
 import { PdfDownloadButton } from "@/components/order4u/pdf-download-button";
 import type { InvoiceLineDisplay } from "@/lib/invoice-display";
 import { productInvoicePdfUrl } from "@/lib/invoice-display";
+import { productInvoiceThbAmountDue, remainingProductAmountDue } from "@/lib/product-invoice-calc";
 import type { InvoiceSnapshot } from "@/lib/types";
 
 type ProductInvoiceCardProps = {
@@ -32,6 +33,8 @@ export function ProductInvoiceCard({
   headerActions,
 }: ProductInvoiceCardProps) {
   const canDownload = showDownload && publicToken;
+  const hasCancelled = lines.some((line) => line.cancelled);
+  const due = hasCancelled ? remainingProductAmountDue(snapshot, lines) : null;
 
   return (
     <div className="space-y-4">
@@ -47,7 +50,23 @@ export function ProductInvoiceCard({
 
       <InvoiceLineItems lines={lines} />
 
-      <InvoiceBlock title={title} snapshot={snapshot} hideShipping />
+      <InvoiceBlock
+        title={title}
+        snapshot={snapshot}
+        hideShipping
+        settlement={
+          due
+            ? {
+                amountDueThb: due.thb,
+                amountDueMmk: due.mmk,
+                paidThb: productInvoiceThbAmountDue(snapshot),
+                paidMmk: snapshot.mmkTotal,
+                feeThb: due.serviceFeeThb,
+                feeMmk: due.serviceFeeMmk,
+              }
+            : undefined
+        }
+      />
 
       {canDownload && (
         <PdfDownloadButton

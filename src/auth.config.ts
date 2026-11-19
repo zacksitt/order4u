@@ -15,8 +15,13 @@ export const authConfig = {
         token.role = user.role;
         token.mustChangePassword = Boolean(user.mustChangePassword);
       }
-      if (trigger === "update" && session && "mustChangePassword" in session) {
-        token.mustChangePassword = Boolean(session.mustChangePassword);
+      if (trigger === "update" && session) {
+        if ("mustChangePassword" in session) {
+          token.mustChangePassword = Boolean(session.mustChangePassword);
+        }
+        if (typeof session.tenantId === "string" && session.tenantId) {
+          token.tenantId = session.tenantId;
+        }
       }
       return token;
     },

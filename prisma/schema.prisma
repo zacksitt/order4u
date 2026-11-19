@@ -98,6 +98,7 @@ model User {
   isActive            Boolean  @default(true) @map("is_active")
   mustChangePassword  Boolean  @default(false) @map("must_change_password")
   createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
 
   memberships          TenantMembership[]
   customerProfile      Customer?
@@ -114,9 +115,11 @@ model User {
 }
 
 model TenantMembership {
-  tenantId String         @map("tenant_id")
-  userId   String         @map("user_id")
-  role     MembershipRole
+  tenantId  String         @map("tenant_id")
+  userId    String         @map("user_id")
+  role      MembershipRole
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @default(now()) @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -141,8 +144,9 @@ model Customer {
   messengerPsid        String? @map("messenger_psid")
   messengerPsidHash    String? @map("messenger_psid_hash")
   messengerDisplayName String? @map("messenger_display_name")
-  trustedBuyBeforePay  Boolean @default(false) @map("trusted_buy_before_pay")
+  trustedBuyBeforePay  Boolean  @default(false) @map("trusted_buy_before_pay")
   createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -242,6 +246,9 @@ model OrderItem {
   shopeeItemId   String?     @map("shopee_item_id")
   itemCategoryId String?    @map("item_category_id")
   customerNote   String?    @map("customer_note")
+  cancelNote     String?    @map("cancel_note")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at")
 
   order        Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   catalogItem  CatalogItem?  @relation(fields: [catalogItemId], references: [id])
@@ -256,6 +263,8 @@ model ExchangeRateHistory {
   rate          Decimal  @db.Decimal(12, 4)
   effectiveAt   DateTime @default(now()) @map("effective_at")
   setByUserId   String   @map("set_by_user_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   setBy  User   @relation("ExchangeRateSetter", fields: [setByUserId], references: [id])
@@ -276,6 +285,8 @@ model ProductInvoice {
   mmkServiceFee     Int      @map("mmk_service_fee")
   rateThbMmk        Decimal  @map("rate_thb_mmk") @db.Decimal(12, 4)
   mmkTotalDue       Int      @map("mmk_total_due")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -291,6 +302,8 @@ model CargoInvoice {
   subtotalThb       Decimal? @map("subtotal_thb") @db.Decimal(12, 2)
   discountThb       Decimal  @default(0) @map("discount_thb") @db.Decimal(12, 2)
   mmkTotalDue       Int      @map("mmk_total_due")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
 
   order Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
   lines CargoInvoiceLine[]
@@ -307,8 +320,10 @@ model CargoInvoiceLine {
   qty            Int
   weightKg       Decimal @default(0) @map("weight_kg") @db.Decimal(8, 2)
   /// THB per kg for this category on this invoice.
-  unitPriceThb   Decimal @map("unit_price_thb") @db.Decimal(12, 2)
-  totalThb       Decimal @map("total_thb") @db.Decimal(12, 2)
+  unitPriceThb   Decimal  @map("unit_price_thb") @db.Decimal(12, 2)
+  totalThb       Decimal  @map("total_thb") @db.Decimal(12, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
   cargoInvoice CargoInvoice @relation(fields: [cargoInvoiceId], references: [id], onDelete: Cascade)
 
@@ -324,6 +339,7 @@ model Notification {
   readAt    DateTime?        @map("read_at")
   payload   Json
   createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @default(now()) @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -340,6 +356,7 @@ model ActionsLog {
   entityId   String              @map("entity_id")
   actions    String[]
   updatedBy  String              @map("updated_by")
+  createdAt  DateTime            @default(now()) @map("created_at")
   updatedAt  DateTime            @updatedAt @map("updated_at")
 
   tenant  Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)

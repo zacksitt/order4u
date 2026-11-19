@@ -6,6 +6,8 @@ export type InvoiceLineDisplay = {
   price: number;
   /** Thai shipping for this line (not multiplied by qty). */
   shippingFeeThb?: number;
+  cancelled?: boolean;
+  cancelNote?: string;
 };
 
 export function orderItemsToInvoiceLines(items: OrderItem[]): InvoiceLineDisplay[] {
@@ -14,6 +16,8 @@ export function orderItemsToInvoiceLines(items: OrderItem[]): InvoiceLineDisplay
     qty: i.qty,
     price: i.price,
     shippingFeeThb: i.shippingFeeThb ?? 0,
+    cancelled: i.status === "cancelled",
+    cancelNote: i.status === "cancelled" ? i.cancelNote : undefined,
   }));
 }
 

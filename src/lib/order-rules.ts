@@ -1,7 +1,10 @@
 import type { FulfillmentStatus, Order, OrderItem } from "./types";
 
 export function allItemsArrived(items: OrderItem[]): boolean {
-  return items.every((i) => i.status === "arrived_at_agent" || i.status === "cancelled");
+  return (
+    items.some((i) => i.status === "arrived_at_agent") &&
+    items.every((i) => i.status === "arrived_at_agent" || i.status === "cancelled")
+  );
 }
 
 export function allItemsArrivedForOrder(order: Order): boolean {

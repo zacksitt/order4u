@@ -142,6 +142,9 @@ export function PublicOrderView({ order, shopName = "Demo Shop", variant = "publ
                   {item.customerNote ? (
                     <p className="mt-1 text-xs text-muted-foreground">{item.customerNote}</p>
                   ) : null}
+                  {item.status === "cancelled" && item.cancelNote ? (
+                    <p className="mt-1 text-xs text-muted-foreground">Cancelled: {item.cancelNote}</p>
+                  ) : null}
                   <p className="text-xs text-muted-foreground mt-1">Qty {item.qty}</p>
                 </div>
                 <div className="shrink-0 text-right">
